@@ -4,7 +4,7 @@ import numpy as np
 The 'mesh' arguments throughout should be quadruples:
 - Vertices, as an nXd array
 - List of neighbors of each vertex (indices)
-- List of triangles represented as tuples of three indices
+- List of triangles represented as tuples of indices (three for two-dimensional manifolds)
 - List of all triangles adjacent to each vertex.
 """
 
