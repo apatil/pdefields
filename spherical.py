@@ -1,7 +1,7 @@
 from stripackd import trmesh, trlist
 import stripackd
 
-__all__ = ['triangulate_sphere', 'plot_triangulation']
+__all__ = ['triangulate_sphere', 'plot_triangulation', 'triangle_innerprod', 'triangle_gradient_innerprod']
 
 def fortan_index(a, i):
     return a[i-1]
@@ -76,7 +76,14 @@ def plot_triangulation(X,neighbors):
             ax.plot([x[frm], x[to]], [y[frm], y[to]], [z[frm], z[to]], 'k-')
             
     ax.plot(x,y,z,'r.')
-    
+
+def triangle_innerprod(node, neighbor, vertices, triangle_map):
+    # FIXME: mock
+    return node==neighbor
+
+def triangle_gradient_innerprod(node, neighbor, vertices, triangle_map):
+    # FIXME: mock
+    return node==neighbor    
     
 if __name__ == '__main__':
     import numpy as np
