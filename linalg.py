@@ -5,7 +5,10 @@ If you redefine any of these functions, it will be used throughout pdefields.
 
 import numpy as np
 import scipy
-from scipy import linalg
+from scipy import sparse
+
+def into_matrix_type(m):
+    return sparse.csr.csr_matrix(m)
 
 def sqrtm_from_diags(tridiag):
     return scipy.linalg.cholesky_banded(tridiag, overwrite_ab=False,lower=True)
@@ -19,6 +22,9 @@ def norm(x):
 def axpy(a,x,y):
     "Returns ax+y"
     return a*x + y
+
+def extract_diagonal(x):
+    return x.diagonal()
 
 def lanczos(A,z,m):
     V = np.empty((len(z), m))
@@ -56,37 +62,37 @@ def krylov_product_Simpson(A,z,m):
     return norm(z)*np.dot(V[:,:m-1],scipy.linalg.solve_banded((1,0), S, e))
 
 def m_xtyx(x,y):
-    # FIXME: Sparse
-    return np.dot(np.dot(x.T,y),x)
+    return x.T*y*x
 
-def v_xtyx(x,y):
-    # FIXME: Sparse
-    return m_xtyx(x,y)
-    
+v_xtyx = m_xtyx
+
 def m_mul_m(x,y):
-    # FIXME: Sparse
-    return np.dot(x,y)
+    return x*y
 
-def m_solve_m(x,y):
-    # FIXME: Sparse
-    return np.linalg.solve(x,y)
-    
-def m_solve_v(x,y):
-    # FIXME: Sparse
-    return np.linalg.solve(x,y)
+def dm_solve_m(x,y):
+    "A^{-1} B, where A is diagonal and B is CSR."
+    out = y.copy()
+    nzi = y.nonzero()
+    for i in xrange(len(nzi[0])):
+        i_ = nzi[0][i]
+        j_ = nzi[1][i]
+        out[i_, j_] /= x[i_,i_]
+    return out
+
+def m_solve_v(x,y,symm=False):
+    if symm:
+        sparse.linalg.cg(x,y)
+    else:
+        return sparse.linalg.gmres(x,y)
 
 def m_mul_v(x,y):
-    # FIXME: Sparse
-    return np.dot(x,y)
-
-def matrix_from_diag(d):
-    # FIXME: Sparse
-    return np.eye(d.shape[0])*d
-    
+    return x*y
+        
 def log_determinant(x):
-    # FIXME: sparse
+    # FIXME: This is wrong and slow.
     # Can the method of Bai et al. be used?
-    return np.log(np.linalg.det(x))
+    w,v = sparse.linalg.eigs(x, k=x.shape[0]-2)
+    return np.log(w.real).sum()
 
 def diagonalize_conserving_rowsums(x):
     new_diag = m_mul_v(x, np.ones(x.shape[0]))

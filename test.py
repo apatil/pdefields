@@ -18,3 +18,6 @@ Ctilde = spherical.Ctilde(X, triangles, triangle_areas)
 C = spherical.C(X, triangles, triangle_areas)
 G = spherical.G(X, triangles, triangle_areas)
 
+# Operator generation
+import operators
+Q, det = operators.mod_frac_laplacian_precision_and_log_determinant(Ctilde, G, 1, 1)
