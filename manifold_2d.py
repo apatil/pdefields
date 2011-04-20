@@ -35,7 +35,7 @@ def C(vertices, triangles, triangle_areas):
             for j in t:
                 out[i,j] += a/12
             out[i,i] += a/12
-    return out.tocsr()
+    return out
 
 def G(vertices, triangles, triangle_areas):
     u"Returns the <∇ ψ_i, ∇ ψ_j> matrix as a SciPy CSR matrix."
@@ -46,4 +46,4 @@ def G(vertices, triangles, triangle_areas):
         for mi,i in enumerate(t):
             for mj,j in enumerate(t):
                 out[i,j] += m[mi,mj]
-    return out.tocsr()
+    return out

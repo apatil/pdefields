@@ -1,6 +1,7 @@
 """
 Functionality to assemble sparse matrices approximating differential operators on triangulated domains.
-Agnostic to both the manifold and the linear algebra backend.
+Agnostic to both the manifold and the linear algebra backend. All linear algebra goes via the linalg
+module.
 """
 
 import numpy as np

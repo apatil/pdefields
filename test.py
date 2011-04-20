@@ -20,4 +20,10 @@ G = spherical.G(X, triangles, triangle_areas)
 
 # Operator generation
 import operators
+import linalg
+Ctilde = linalg.into_matrix_type(Ctilde)
+G = linalg.into_matrix_type(G)
 Q, det = operators.mod_frac_laplacian_precision_and_log_determinant(Ctilde, G, 1, 1)
+
+# Field and plot.
+f = linalg.rmvn(Q)

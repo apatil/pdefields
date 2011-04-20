@@ -1,7 +1,10 @@
 """
 This is the only interface to the linear algebra backend. 
 If you redefine any of these functions, it will be used throughout pdefields.
+The required interface is the __all__ list.
 """
+
+__all__ = ['into_matrix_type', 'rmvn', 'm_xtyx', 'v_xtyx', 'm_mul_m', 'm_mul_v', 'dm_solve_m', 'm_solve_v', 'log_determinant']
 
 import numpy as np
 import scipy
@@ -61,6 +64,9 @@ def krylov_product_Simpson(A,z,m):
     e = np.hstack([1,np.zeros(m-2)])
     return norm(z)*np.dot(V[:,:m-1],scipy.linalg.solve_banded((1,0), S, e))
 
+def rmvn(Q, m=200):
+    return krylov_product_Simpson(Q, np.random.normal(size=Q.shape[0]), m)
+
 def m_xtyx(x,y):
     return x.T*y*x
 
@@ -93,7 +99,3 @@ def log_determinant(x):
     # Can the method of Bai et al. be used?
     w,v = sparse.linalg.eigs(x, k=x.shape[0]-2)
     return np.log(w.real).sum()
-
-def diagonalize_conserving_rowsums(x):
-    new_diag = m_mul_v(x, np.ones(x.shape[0]))
-    return matrix_from_diag(new_diag)
