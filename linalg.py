@@ -13,7 +13,12 @@ def sqrtm_from_diags(tridiag):
 m_mul_v = np.dot
 
 def norm(x):
+    "Returns |x|"
     return np.sqrt(np.dot(x,x))
+
+def axpy(a,x,y):
+    "Returns ax+y"
+    return a*x + y
 
 def lanczos(A,z,m):
     V = np.empty((len(z), m))
