@@ -4,8 +4,8 @@ http://orion.math.iastate.edu/burkardt/f_src/stripack/stripackd.f90
 """
 
 from stripackd import trmesh, bnodes
-import stripackd
-from manifold_2d import Ctilde, C, G, B
+from manifold_2d import *
+import numpy as np
 
 def fortan_index(a, i):
     return a[i-1]
@@ -51,7 +51,7 @@ def triangulate_sphere(X):
     # Unwind the fortran linked list
     neighbormap = []
     boundary = []
-    for i in xrange(n):
+    for i in xrange(X.shape[0]):
         j = lend[i]
         block = []
         while True:
@@ -86,17 +86,3 @@ def plot_triangulation(X,neighbors):
             ax.plot([x[frm], x[to]], [y[frm], y[to]], [z[frm], z[to]], 'k-')
             
     ax.plot(x,y,z,'r.')
-    
-if __name__ == '__main__':
-    import numpy as np
-    import pymc as pm
-    
-    n = 500
-    X = np.random.normal(size=(3,n))
-    # X[0,:] = X[0,:]**2
-    X /= np.sqrt((X**2).sum(axis=0))
-    
-    neighbors, triangles, trimap, b = triangulate_sphere(X.T)
-    # plot_triangulation(X.T,neighbors)
-    
-    # plot_triangulation(x,y,z)

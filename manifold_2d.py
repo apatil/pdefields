@@ -1,11 +1,14 @@
 # -*- coding: UTF-8 -*-
 "Includes functions to compute the needed inner product matrices on triangulated 2d manifolds."
 
-# FIXME: This all needs to be changed to allow for spatially varying parameters, 
+# TODO: This all needs to be changed to allow for spatially varying parameters, 
 # and for matrix coefficients stuck into the differential operators.
+# Also, need to figure out how to handle 'internal boundaries.'
 
 import numpy as np
 from scipy.sparse import lil_matrix
+
+__all__ = ['triangle_area', 'Ctilde', 'C', 'G']
 
 def get_edges(vertices, triangle):
     v = [vertices[i] for i in triangle]
@@ -38,36 +41,9 @@ def G(vertices, triangles, triangle_areas):
     u"Returns the <∇ ψ_i, ∇ ψ_j> matrix as a SciPy CSR matrix."
     out = lil_matrix((len(vertices), len(vertices)))
     for t,a in zip(triangles, triangle_areas):
-        e = get_edges[vertices, t]
+        e = get_edges(vertices, t)
         m = np.dot(e,e.T)/4/a
-        for i in t:
-            for j in t:
-                out[i,j] += m[i,j]
-    return out.tocsr()
-    
-def B(vertices, triangles, triangle_areas, boundary_nodes):
-    u"Returns the <ψ_i, ∂_n ψ_j> matrix as a SciPy CSR matrix. Is only nonzero when ψ_j has boundary edges, I think."
-    out = lil_matrix((len(vertices), len(vertices)))
-    for t,a in zip(triangles, triangle_areas):
-        e = get_edges[vertices, t]
-        m1 = np.bmat([[0,e[0],e[0]],[e[1],0,e[1]],[e[2],e[2],0]])
-        
-        i3 = np.eye(3)
-        b_ = [i in boundary_nodes for i in t]
-        b = [b_[2] and b_[1], b_[0] and b_[2], b_[1] and b_[0]]
-        m2 = np.bmat([[i3*b[0]],[i3*b[1]],[i3*b[2]]])
-        
-        m = -1/(4*a)*m1.T*m2*e.T
-        for i in t:
-            for j in t:
-                out[i,j] += m[i,j]
-    return out.tocsr()
-
-def B_val(vertices, triangles, triangle_areas, boundary_nodes):
-    "???"
-    out = lil_matrix((len(vertices), len(vertices)))
-    for t,a in zip(triangles, triangle_areas):
-        e = get_edges[vertices, t]
-        isbound = []
-        raise NotImplementedError
+        for mi,i in enumerate(t):
+            for mj,j in enumerate(t):
+                out[i,j] += m[mi,mj]
     return out.tocsr()
