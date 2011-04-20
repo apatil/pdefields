@@ -4,7 +4,7 @@ If you redefine any of these functions, it will be used throughout pdefields.
 The required interface is the __all__ list.
 """
 
-__all__ = ['into_matrix_type', 'rmvn', 'm_xtyx', 'v_xtyx', 'm_mul_m', 'm_mul_v', 'dm_solve_m', 'm_solve_v', 'log_determinant']
+__all__ = ['into_matrix_type', 'rmvn', 'm_xtyx', 'v_xtyx', 'm_mul_m', 'm_add_m', 'm_mul_v', 'dm_solve_m', 'm_solve_v', 'log_determinant']
 
 import numpy as np
 import scipy
@@ -74,6 +74,9 @@ v_xtyx = m_xtyx
 
 def m_mul_m(x,y):
     return x*y
+    
+def m_add_m(x,y):
+    return x+y
 
 def dm_solve_m(x,y):
     "A^{-1} B, where A is diagonal and B is CSR."
@@ -99,3 +102,6 @@ def log_determinant(x):
     # Can the method of Bai et al. be used?
     w,v = sparse.linalg.eigs(x, k=x.shape[0]-2)
     return np.log(w.real).sum()
+
+def prec_gibbs(m,q,conditional_obs_prec):
+    return prec_mvn(m,q+conditional_obs_prec)

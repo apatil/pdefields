@@ -1,25 +1,24 @@
 """
 Functionality to perform common operations on large multivariate normal variables parameterized by precision.
-Agnostic to linear algebra backend.
+Agnostic to linear algebra backend, all linear algebra happens through linalg.
 """
 
 import pymc
 import numpy as np
-import linalg
 
-def prec_rmvn(m,q,lqdet,n=None):
+def rmvn_full(m,q,lqdet,n=None):
     n = n or min(len(m), 2000)
-    return m+krylov_product_Simpson(q, np.random.normal(size=len(m)), n)
+    return m+linalg.rmvn(q,n)
     
-def prec_mvn_logp(x,m,q,lqdet):
+def mvn_logp(x,m,q,lqdet):
     # FIXME: sparse
     "Blah."
-    return -q.shape[0]/2 * (np.log(2*np.pi)+lqdet) - v_xtyx((x-m),q)/2
+    return -q.shape[0]/2 * (np.log(2*np.pi)+lqdet) - linalg.v_xtyx((x-m),q)/2
     
 def prec_gibbs(m,q,conditional_obs_prec):
     return prec_mvn(m,q+conditional_obs_prec)
 
-SparsePrecMVN = pymc.distributions.stochastic_from_dist('sparse_prec_mvn', prec_mvn_logp, prec_rmvn, mv=True)
+SparsePrecMVN = pymc.distributions.stochastic_from_dist('sparse_prec_mvn', mvn_logp, rmvn_full, mv=True)
 
 class SparsePrecMVNStep(pymc.StepMethod):
 
@@ -31,11 +30,11 @@ class SparsePrecMVNStep(pymc.StepMethod):
     def step(self):
         m = pymc.utils.value(stochastic.parents['m'])
         q = pymc.utils.value(stochastic.parents['q'])
-        conditional_precision = q + pm.utils.value(self.obs_precision)
+        conditional_precision = linalg.m_add_m(q , pm.utils.value(self.obs_precision))
         delta = pm.utils.value(self.observation) - self.stochastic.value
         # Slow step.
-        conditional_mean = m_solve_v(q,m_mul_v(conditional_precision, delta))
-        self.stochastic.value = prec_rmvn(conditional_mean, conditional_precision, 0)
+        conditional_mean = linalg.m_solve_v(q,linalg.m_mul_v(conditional_precision, delta))
+        self.stochastic.value = rmvn_full(conditional_mean, conditional_precision, 0)
     
 def prec_propose_element_from_conditional_prior(x,m,q,i):
     raise NotImplementedError
