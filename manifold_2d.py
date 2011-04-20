@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 "Includes functions to compute the needed inner product matrices on triangulated 2d manifolds."
 
 # FIXME: This all needs to be changed to allow for spatially varying parameters, 
@@ -16,7 +17,7 @@ def triangle_area(vertices, triangle):
     return (np.cross(edges[0], edges[1])**2).sum()/2.
 
 def Ctilde(vertices, triangles, triangle_areas):
-    "Returns the diagonal of the <ψ_i, 1> matrix as a vector."
+    u"Returns the diagonal of the <ψ_i, 1> matrix as a vector."
     out = np.empty(len(vertices))
     for t,a in zip(triangles, triangle_areas):
         for i in t:
@@ -24,7 +25,7 @@ def Ctilde(vertices, triangles, triangle_areas):
     return out
 
 def C(vertices, triangles, triangle_areas):
-    "Returns the <ψ_i, ψ_j> matrix as a SciPy csr matrix."
+    u"Returns the <ψ_i, ψ_j> matrix as a SciPy csr matrix."
     out = lil_matrix((len(vertices), len(vertices)))
     for t,a in zip(triangles, triangle_areas):
         for i in t:
@@ -34,7 +35,7 @@ def C(vertices, triangles, triangle_areas):
     return out.tocsr()
 
 def G(vertices, triangles, triangle_areas):
-    "Returns the <∇ ψ_i, ∇ ψ_j> matrix as a SciPy CSR matrix."
+    u"Returns the <∇ ψ_i, ∇ ψ_j> matrix as a SciPy CSR matrix."
     out = lil_matrix((len(vertices), len(vertices)))
     for t,a in zip(triangles, triangle_areas):
         e = get_edges[vertices, t]
@@ -45,7 +46,7 @@ def G(vertices, triangles, triangle_areas):
     return out.tocsr()
     
 def B(vertices, triangles, triangle_areas, boundary_nodes):
-    "Returns the <ψ_i, ∂_n ψ_j> matrix as a SciPy CSR matrix. Is only nonzero when ψ_j has boundary edges, I think."
+    u"Returns the <ψ_i, ∂_n ψ_j> matrix as a SciPy CSR matrix. Is only nonzero when ψ_j has boundary edges, I think."
     out = lil_matrix((len(vertices), len(vertices)))
     for t,a in zip(triangles, triangle_areas):
         e = get_edges[vertices, t]

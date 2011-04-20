@@ -1,5 +1,7 @@
-"""This is the only interface to the linear algebra backend. 
-If you redefine any of these functions, it will be used throughout pdefields."""
+"""
+This is the only interface to the linear algebra backend. 
+If you redefine any of these functions, it will be used throughout pdefields.
+"""
 
 import numpy as np
 import scipy
