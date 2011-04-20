@@ -20,11 +20,11 @@ def triangle_area(vertices, triangle):
     return (np.cross(edges[0], edges[1])**2).sum()/2.
 
 def Ctilde(vertices, triangles, triangle_areas):
-    u"Returns the diagonal of the <ψ_i, 1> matrix as a vector."
-    out = np.empty(len(vertices))
+    u"Returns the diagonal of the <ψ_i, 1> matrix as a diagonal SciPy csr matrix."
+    out = lil_matrix((len(vertices), len(vertices)))
     for t,a in zip(triangles, triangle_areas):
         for i in t:
-            out[i] += a/3
+            out[i,i] += a/3
     return out
 
 def C(vertices, triangles, triangle_areas):
