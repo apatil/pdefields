@@ -1,7 +1,11 @@
-from stripackd import trmesh, trlist
-import stripackd
+"""
+Produces triangulated meshes on spheres using stripackd, 
+http://orion.math.iastate.edu/burkardt/f_src/stripack/stripackd.f90
+"""
 
-__all__ = ['triangulate_sphere', 'plot_triangulation', 'triangle_innerprod', 'triangle_gradient_innerprod']
+from stripackd import trmesh, bnodes
+import stripackd
+from manifold_2d import Ctilde, C, G, B
 
 def fortan_index(a, i):
     return a[i-1]
@@ -34,6 +38,7 @@ def triangulate_sphere(X):
         - List of neighbors of each vertex
         - List of triangles represented as tuples of three indices
         - List of all triangles adjacent to each vertex.
+        - List of indices of boundary vertices.
     """
     
     x,y,z = X.T
@@ -45,6 +50,7 @@ def triangulate_sphere(X):
     
     # Unwind the fortran linked list
     neighbormap = []
+    boundary = []
     for i in xrange(n):
         j = lend[i]
         block = []
@@ -53,9 +59,13 @@ def triangulate_sphere(X):
             block.append(np.abs(fortan_index(lst, j))-1)
             if j==lend[i]:
                 neighbormap.append(set(block))
+                if fortan_index(lst, j)<0:
+                    boundary.append(i)
                 break
     
-    return (neighbormap,) + neighbors2tri(X.shape[0], neighbormap)
+    triangles, trimap = neighbors2tri(X.shape[0], neighbormap)
+
+    return neighbormap, triangles, trimap, boundary
     
 def plot_triangulation(X,neighbors):
     """
@@ -76,14 +86,6 @@ def plot_triangulation(X,neighbors):
             ax.plot([x[frm], x[to]], [y[frm], y[to]], [z[frm], z[to]], 'k-')
             
     ax.plot(x,y,z,'r.')
-
-def triangle_innerprod(node, neighbor, vertices, triangle_map):
-    # FIXME: mock
-    return node==neighbor
-
-def triangle_gradient_innerprod(node, neighbor, vertices, triangle_map):
-    # FIXME: mock
-    return node==neighbor    
     
 if __name__ == '__main__':
     import numpy as np
@@ -94,7 +96,7 @@ if __name__ == '__main__':
     # X[0,:] = X[0,:]**2
     X /= np.sqrt((X**2).sum(axis=0))
     
-    neighbors, triangles, trimap = triangulate_sphere(X.T)
+    neighbors, triangles, trimap, b = triangulate_sphere(X.T)
     # plot_triangulation(X.T,neighbors)
     
     # plot_triangulation(x,y,z)

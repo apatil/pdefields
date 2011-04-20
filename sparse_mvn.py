@@ -1,50 +1,11 @@
+"""
+Functionality to perform common operations on large multivariate normal variables parameterized by precision.
+Agnostic to linear algebra backend.
+"""
+
 import pymc
 import numpy as np
-import scipy
-from scipy import linalg
-
-def sqrtm_from_diags(tridiag):
-    return scipy.linalg.cholesky_banded(tridiag, overwrite_ab=False,lower=True)
-
-m_mul_v = np.dot
-
-def norm(x):
-    return np.sqrt(np.dot(x,x))
-
-def lanczos(A,z,m):
-    V = np.empty((len(z), m))
-    alpha = np.zeros(m)
-    beta = np.zeros(m+1)
-
-    nz = norm(z)
-
-    V[:,0] = z/nz
-    for k in xrange(1,m):
-        V[:,k] = m_mul_v(A,V[:,k-1])
-        if k > 1:
-            V[:,k] -= beta[k]*V[:,k-2]
-        alpha[k] = np.dot(V[:,k], V[:,k-1])
-        V[:,k] -= alpha[k] * V[:,k-1]
-        beta[k+1] = norm(V[:,k])
-        V[:,k] /= beta[k+1]
-        
-    T = np.zeros((2,m-1))
-    T[0,:] = alpha[1:]
-    T[1,:-1] = beta[2:-1]
-    return T, V
-
-def krylov_product_Simpson(A,z,m):
-    """
-    Port of Matlab code provided by Daniel Simpson.
-    r is the vector of i.i.d. standard normals
-    A is the precision matrix
-    m is the size of the krylov subspace
-    """
-    # FIXME: Doesn't work.
-    T,V = lanczos(A,z,m)
-    S = sqrtm_from_diags(T)
-    e = np.hstack([1,np.zeros(m-2)])
-    return norm(z)*np.dot(V[:,:m-1],scipy.linalg.solve_banded((1,0), S, e))
+import linalg
 
 def prec_rmvn(m,q,lqdet,n=None):
     n = n or min(len(m), 2000)

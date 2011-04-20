@@ -550,6 +550,8 @@ subroutine bdyadd ( kk, i1, i2, list, lptr, lend, lnew )
   return
 end
 subroutine bnodes ( n, list, lptr, lend, nodes, nb, na, nt )
+!f2py intent(out) nodes, na, nt
+!f2py intent(hide) nb
 !
 !*******************************************************************************
 !
