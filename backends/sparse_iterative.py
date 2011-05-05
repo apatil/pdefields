@@ -1,10 +1,8 @@
 """
-This is the only interface to the linear algebra backend. 
-If you redefine any of these functions, it will be used throughout pdefields.
-The required interface is the __all__ list.
+A linear algebra backend that uses sparse, iterative operations.
 """
 
-__all__ = ['into_matrix_type', 'rmvn', 'm_xtyx', 'v_xtyx', 'm_mul_m', 'm_add_m', 'm_mul_v', 'dm_solve_m', 'm_solve_v', 'log_determinant']
+__all__ = ['into_matrix_type', 'precision_to_products' 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx']
 
 import numpy as np
 import scipy
@@ -53,8 +51,9 @@ def lanczos(A,z,m):
 
 def krylov_product_Simpson(A,z,m):
     """
-    Port of Matlab code provided by Daniel Simpson.
-    r is the vector of i.i.d. standard normals
+    Port of Matlab code provided by Daniel Simpson. Approximates Cholesky(A^{-1})*z.
+    
+    z is the vector of i.i.d. standard normals
     A is the precision matrix
     m is the size of the krylov subspace
     """
@@ -64,8 +63,8 @@ def krylov_product_Simpson(A,z,m):
     e = np.hstack([1,np.zeros(m-2)])
     return norm(z)*np.dot(V[:,:m-1],scipy.linalg.solve_banded((1,0), S, e))
 
-def rmvn(Q, m=200):
-    return krylov_product_Simpson(Q, np.random.normal(size=Q.shape[0]), m)
+def rmvn(M, Q, ldq, m=200):
+    return M+krylov_product_Simpson(Q, np.random.normal(size=Q.shape[0]), m)
 
 def m_xtyx(x,y):
     return x.T*y*x
@@ -105,3 +104,10 @@ def log_determinant(x):
 
 def prec_gibbs(m,q,conditional_obs_prec):
     return prec_mvn(m,q+conditional_obs_prec)
+    
+def precision_to_products(Q):
+    return {'Q': Q, 'ldq': log_determinant(Q)}
+    
+def mvn_logp(x,M,Q,ldq):
+    x_ = (x-M)
+    return -(len(M)/2.)*np.log(2.*pi)-.5*ldq - .5*v_xtyx(x_,Q)
