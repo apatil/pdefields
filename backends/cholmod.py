@@ -11,8 +11,8 @@ import scikits.sparse.cholmod as cholmod
 
 precision_product_keys = ['L','P','F']
 
-def pattern_to_products(q):
-    return {'symbolic': cholmod.analyze(q)}
+def pattern_to_products(pattern):
+    return {'symbolic': cholmod.analyze(pattern)}
 
 def precision_to_products(q, symbolic):
     F = symbolic.cholesky(q)

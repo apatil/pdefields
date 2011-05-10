@@ -25,15 +25,27 @@ G = spherical.G(X, triangles, triangle_areas)
 # Operator generation
 Ctilde = backends.cholmod.into_matrix_type(Ctilde)
 G = backends.cholmod.into_matrix_type(G)
-Q = operators.mod_frac_laplacian_precision(Ctilde, G, 1, 1, backends.cholmod)
-
-# Variable
 M = np.zeros(n)
-pattern_products = cholmod.pattern_to_products(Q)
-precision_products = cholmod.precision_to_products(Q, **pattern_products)
 
-kls = interface.sparse_MVN(cholmod)
-S=kls('S',M, **precision_products)
+kappa = pm.Exponential('kappa',1,value=1)
+alpha = pm.DiscreteUniform('alpha',1,10,value=2.)
 
+@pm.deterministic
+def Q(kappa=kappa, alpha=alpha):
+    return operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha/2., backends.cholmod)
+
+# Nailing this ahead of time reduces time to compute logp from .18 to .13s for n=25000.
+pattern_products = cholmod.pattern_to_products(Q.value)
+# @pm.deterministic
+# def pattern_products(Q=Q):
+#     return cholmod.pattern_to_products(Q)
+
+@pm.deterministic
+def precision_products(Q=Q, p=pattern_products):
+    return cholmod.precision_to_products(Q, **p)
+
+S=interface.SparseMVN('S',M, precision_products, cholmod)
+
+# Make a map
 import spherical
-rast = spherical.mesh_to_map(X,S.value)
+rast = spherical.mesh_to_map(X,S.value,501)

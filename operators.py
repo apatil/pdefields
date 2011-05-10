@@ -11,6 +11,7 @@ import numpy as np
 # TODO: Imaginary.
 # TODO: Multivariate.
 
+# TODO: Each operator should be able to return a sparsity pattern in addition to an actual precision.
 def mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backend):
     # TODO: Put an H matrix in there.
     # TODO: Spatially-varying kappa and amplitude.

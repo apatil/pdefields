@@ -4,5 +4,12 @@ import pymc as pm
 
 # TODO: Conditional versions of all.
 
-def sparse_MVN(backend):
-    return pm.stochastic_from_dist('SparseMVN_%s'%backend.__name__, backend.mvn_logp, backend.rmvn, mv=True)
+def mvn_logp(x,M,precision_products,backend):
+    ""
+    return backend.mvn_logp(x,M,**precision_products)
+    
+def rmvn(M,precision_products,backend):
+    return backend.rmvn(M,**precision_products)
+
+SparseMVN = pm.stochastic_from_dist('SparseMVN', mvn_logp, rmvn, mv=True)
+
