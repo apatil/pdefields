@@ -18,12 +18,13 @@ def precision_to_products(q, symbolic):
     F = symbolic.cholesky(q)
     L = F.L()
     P = symbolic.P()
-    return {'L':L, 'P': P, 'F': F}
+    Pbak = np.argsort(P)
+    return {'L':L, 'P': P, 'F': F, 'Pbak': Pbak}
 
-def rmvn(M,L,F,P):
-    return M+F.solve_Lt(np.random.normal(size=len(M)))
+def rmvn(M,L,F,P,Pbak):
+    return M+F.solve_Lt(np.random.normal(size=len(M)))[Pbak]
 
-def mvn_logp(x,M,L,F,P):
+def mvn_logp(x,M,L,F,P,Pbak):
     """
      M is the mean vector
      L is the sparse Cholesky triangle

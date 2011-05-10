@@ -28,11 +28,11 @@ G = backends.cholmod.into_matrix_type(G)
 M = np.zeros(n)
 
 kappa = pm.Exponential('kappa',1,value=1)
-alpha = pm.DiscreteUniform('alpha',1,10,value=2.)
+alpha = pm.DiscreteUniform('alpha',1,10,value=1.)
 
 @pm.deterministic
 def Q(kappa=kappa, alpha=alpha):
-    return operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha/2., backends.cholmod)
+    return operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backends.cholmod)
 
 # Nailing this ahead of time reduces time to compute logp from .18 to .13s for n=25000.
 pattern_products = cholmod.pattern_to_products(Q.value)
@@ -46,6 +46,11 @@ def precision_products(Q=Q, p=pattern_products):
 
 S=interface.SparseMVN('S',M, precision_products, cholmod)
 
-# Make a map
-import spherical
-rast = spherical.mesh_to_map(X,S.value,501)
+def map_S(S):
+    # Make a map
+    import spherical
+    rast = spherical.mesh_to_map(X,S.value,501)
+    import pylab as pl
+    pl.clf()
+    pl.imshow(rast,interpolation='nearest',vmin=-4,vmax=4,extent=(-2,2,-1,1))
+    pl.colorbar()
