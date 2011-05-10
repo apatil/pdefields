@@ -2,13 +2,16 @@
 A linear algebra backend that uses sparse, iterative operations.
 """
 
+
 __all__ = ['into_matrix_type', 'precision_to_products' 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx']
 
 import numpy as np
 import scipy
 from scipy import sparse
+import warnings
 
 def into_matrix_type(m):
+    warnings.warn('sparse_iterative is not working yet.')
     return sparse.csr.csr_matrix(m)
 
 def sqrtm_from_diags(tridiag):
