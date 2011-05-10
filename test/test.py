@@ -1,12 +1,10 @@
 # Triangulation
 
-import spherical
+
 import numpy as np
 import pymc as pm
-import interface
-import operators
-import backends
-from backends import cholmod
+from pdefields import spherical, interface, operators, backends
+from pdefields.backends import cholmod
 
 n = 25000
 X = np.random.normal(size=(3,n))
