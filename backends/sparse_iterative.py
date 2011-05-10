@@ -3,7 +3,7 @@ A linear algebra backend that uses sparse, iterative operations.
 """
 
 
-__all__ = ['into_matrix_type', 'precision_to_products' 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx']
+__all__ = ['into_matrix_type', 'pattern_to_products', 'precision_to_products' 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx']
 
 import numpy as np
 import scipy
@@ -11,8 +11,7 @@ from scipy import sparse
 import warnings
 
 def into_matrix_type(m):
-    warnings.warn('sparse_iterative is not working yet.')
-    return sparse.csr.csr_matrix(m)
+    return sparse.csc.csc_matrix(m)
 
 def sqrtm_from_diags(tridiag):
     return scipy.linalg.cholesky_banded(tridiag, overwrite_ab=False,lower=True)
@@ -31,6 +30,7 @@ def extract_diagonal(x):
     return x.diagonal()
 
 def lanczos(A,z,m):
+    warnings.warn('sparse_iterative is not working yet.')
     V = np.empty((len(z), m))
     alpha = np.zeros(m)
     beta = np.zeros(m+1)
@@ -81,14 +81,10 @@ def m_add_m(x,y):
     return x+y
 
 def dm_solve_m(x,y):
-    "A^{-1} B, where A is diagonal and B is CSR."
-    out = y.copy()
-    nzi = y.nonzero()
-    for i in xrange(len(nzi[0])):
-        i_ = nzi[0][i]
-        j_ = nzi[1][i]
-        out[i_, j_] /= x[i_,i_]
-    return out
+    "A^{-1} B, where A is diagonal and B is CSC."
+    x_i = x.copy()
+    x_i.data = 1./x_i.data
+    return x_i * y
 
 def m_solve_v(x,y,symm=False):
     if symm:
@@ -107,6 +103,9 @@ def log_determinant(x):
 
 def prec_gibbs(m,q,conditional_obs_prec):
     return prec_mvn(m,q+conditional_obs_prec)
+    
+def pattern_to_products(Q):
+    return Q
     
 def precision_to_products(Q):
     return {'Q': Q, 'ldq': log_determinant(Q)}

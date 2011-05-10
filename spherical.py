@@ -86,3 +86,14 @@ def plot_triangulation(X,neighbors):
             ax.plot([x[frm], x[to]], [y[frm], y[to]], [z[frm], z[to]], 'k-')
             
     ax.plot(x,y,z,'r.')
+    
+def mesh_to_map(X, values, n=101):
+    from scipy.interpolate import griddata
+    theta = np.arctan2(X[:,1],X[:,0])
+    phi = np.arctan2(X[:,2], np.sqrt(X[:,0]**2+X[:,1]**2))
+    # define grid.
+    xi = np.linspace(-np.pi,np.pi,n)
+    yi = np.linspace(-np.pi/2., np.pi/2., n)
+    # grid the data.
+    zi = griddata((theta, phi), values, (xi[None,:], yi[:,None]), method='cubic')
+    return np.ma.masked_array(zi,mask=np.isnan(zi))

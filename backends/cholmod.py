@@ -9,18 +9,27 @@ from scipy import sparse
 from sparse_iterative import into_matrix_type, axpy, dm_solve_m, m_mul_m, m_xtyx
 import scikits.sparse.cholmod as cholmod
 
+precision_product_keys = ['L','P','F']
+
 def pattern_to_products(q):
     return {'symbolic': cholmod.analyze(q)}
 
 def precision_to_products(q, symbolic):
-    L = symbolic.cholesky(q).L()
+    F = symbolic.cholesky(q)
+    L = F.L()
     P = symbolic.P()
-    return {'L':L, 'P': P}
+    return {'L':L, 'P': P, 'F': F}
 
-def rmvn(M,L,P,size):
-    return M+L.solve_Lt(np.random.normal(size=len(M)))
+def rmvn(M,L,F,P):
+    return M+F.solve_Lt(np.random.normal(size=len(M)))
 
-def mvn_logp(x,M,L,P):
+def mvn_logp(x,M,L,F,P):
+    """
+     M is the mean vector
+     L is the sparse Cholesky triangle
+     F is the CHOLMOD factor
+     P is the permutation vector
+     """
     d = L.T*((x-M)[P])
     return -.5*np.dot(d,d) +np.sum(np.log(L.diagonal()))-.5*len(M)*np.log(2.*np.pi)
 
