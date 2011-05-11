@@ -46,9 +46,11 @@ S=interface.SparseMVN('S',M, precision_products, cholmod)
 
 def map_S(S):
     # Make a map
-    import spherical
     rast = spherical.mesh_to_map(X,S.value,501)
     import pylab as pl
     pl.clf()
-    pl.imshow(rast,interpolation='nearest',vmin=-4,vmax=4,extent=(-2,2,-1,1))
+    pl.imshow(rast,interpolation='nearest',vmin=-4,vmax=4)
     pl.colorbar()
+
+S.rand()
+map_S(S)

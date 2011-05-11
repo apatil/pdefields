@@ -8,10 +8,11 @@ from manifold_2d import *
 import numpy as np
 
 def fortan_index(a, i):
+    "A convenience function for converting between indexing starting at 0 (Python) and indexing starting at 1 (Fortran)."
     return a[i-1]
     
 def trilist2trimap(n, trilist):
-    "Converts the list of triangles to a convenient node-to-triangle map."
+    "Converts the list of triangles to a convenient node-to-triangle map. The triangles should be an n X 3 array of indices."
     trimap = [[] for i in xrange(n)]
     for t in trilist:
         for i in t:
@@ -69,6 +70,8 @@ def triangulate_sphere(X):
     
 def plot_triangulation(X,neighbors):
     """
+    X is an m X 3 array of indices and neighbors is a list of lists. The i'th element in neighbors gives the indices of the neighbors of vertex i.
+    
     Generates and visualizes the triangulation using mplot3d.
     """
     
@@ -88,12 +91,13 @@ def plot_triangulation(X,neighbors):
     ax.plot(x,y,z,'r.')
     
 def mesh_to_map(X, values, n=101):
+    "X is an m X 3 array of indices and values is a vector giving the value of the field at each vertex. n gives the number of gridpoints along the equator. Returns a raster representation of the field in a cylindrical projection as a 2d array."
     from scipy.interpolate import griddata
     theta = np.arctan2(X[:,1],X[:,0])
     phi = np.arctan2(X[:,2], np.sqrt(X[:,0]**2+X[:,1]**2))
     # define grid.
     xi = np.linspace(-np.pi,np.pi,n)
-    yi = np.linspace(-np.pi/2., np.pi/2., n)
+    yi = np.linspace(-np.pi/2., np.pi/2., n/2+1)
     # grid the data.
     zi = griddata((theta, phi), values, (xi[None,:], yi[:,None]), method='cubic')
     return np.ma.masked_array(zi,mask=np.isnan(zi))

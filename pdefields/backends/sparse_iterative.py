@@ -1,3 +1,5 @@
+# WARNING: This backend does not work yet.
+
 """
 A linear algebra backend that uses sparse, iterative operations.
 """
@@ -9,9 +11,7 @@ import numpy as np
 import scipy
 from scipy import sparse
 import warnings
-
-def into_matrix_type(m):
-    return sparse.csc.csc_matrix(m)
+from cholmod import into_matrix_type, axpy, dm_solve_m, m_mul_m, m_xtyx
 
 def sqrtm_from_diags(tridiag):
     return scipy.linalg.cholesky_banded(tridiag, overwrite_ab=False,lower=True)
@@ -21,10 +21,6 @@ m_mul_v = np.dot
 def norm(x):
     "Returns |x|"
     return np.sqrt(np.dot(x,x))
-
-def axpy(a,x,y):
-    "Returns ax+y"
-    return a*x + y
 
 def extract_diagonal(x):
     return x.diagonal()
@@ -69,22 +65,10 @@ def krylov_product_Simpson(A,z,m):
 def rmvn(M, Q, ldq, m=200):
     return M+krylov_product_Simpson(Q, np.random.normal(size=Q.shape[0]), m)
 
-def m_xtyx(x,y):
-    return x.T*y*x
-
 v_xtyx = m_xtyx
-
-def m_mul_m(x,y):
-    return x*y
     
 def m_add_m(x,y):
     return x+y
-
-def dm_solve_m(x,y):
-    "A^{-1} B, where A is diagonal and B is CSC."
-    x_i = x.copy()
-    x_i.data = 1./x_i.data
-    return x_i * y
 
 def m_solve_v(x,y,symm=False):
     if symm:
