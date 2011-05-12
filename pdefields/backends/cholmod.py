@@ -48,6 +48,8 @@ def precision_to_products(Q, symbolic):
     - Pbak: The backward permutation vector. x[P][Pbax] = x, and (LDL^T)[Pbak,:][:,Pbak] = Q
     - sqrtD: sqrt(D).
     - """
+    # FIXME: This should be symbolic.cholesky(Q)... but that doesn't work when alpha=2. Why?
+    # F = cholmod.cholesky(Q)
     F = symbolic.cholesky(Q)
     D = F.D()
     sqrtD = np.sqrt(D)
