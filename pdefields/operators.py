@@ -26,16 +26,21 @@ def mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backend):
     It assumes that the sparse matrices Ctilde and G are already in the format required by the backend, ie they are the output of a call to backend.into_matrix_type. All matrix operations are delegated to the backend, so the returned precision matrix will be in the same format.
     """
     
+    # axpy(a, x, y) returns ax + y.
     K = backend.axpy(kappa**2, Ctilde ,G)
+
+    # dm_solve_m solves a diagonal matrix against a matrix.
     Ctilde_I_K = backend.dm_solve_m(Ctilde, K)
     
     def make_Q(alpha):
         if alpha == 1:
             return K
         elif alpha ==  2:
+            # m_mul_m multiplies two matrices.
             return backend.m_mul_m(K,Ctilde_I_K)
         else:
             Q = make_Q(alpha-2)
+            # m_xtyx returns X.T Y X
             return backend.m_xtyx(Ctilde_I_K, Q)
     
     return make_Q(alpha)
