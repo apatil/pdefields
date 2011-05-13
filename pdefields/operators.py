@@ -5,6 +5,7 @@ Agnostic to both the manifold and the linear algebra backend. All linear algebra
 """
 
 import numpy as np
+from scipy.special import gamma
 
 # TODO: More operator specifications.
 # TODO: Interior boundaries.
@@ -25,6 +26,8 @@ def mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backend):
 
     It assumes that the sparse matrices Ctilde and G are already in the format required by the backend, ie they are the output of a call to backend.into_matrix_type. All matrix operations are delegated to the backend, so the returned precision matrix will be in the same format.
     """
+    
+    # Normalize.
     
     # axpy(a, x, y) returns ax + y.
     K = backend.axpy(kappa**2, Ctilde ,G)

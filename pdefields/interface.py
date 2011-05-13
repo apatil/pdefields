@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 "High-level interface to multivariate normal variables. Retargetable linear algebra backend."
 import numpy as np
 import pymc as pm
@@ -12,5 +14,8 @@ def rmvn(M,precision_products,backend):
     "Takes a mean vector M, the products returned by backend.precision_products as a map, and the linear algebra backend module. Passes the arguments to backend.rmvn and returns a random draw x from the multivariate normal variable with mean M and the precision matrix represented in precision_products."
     return backend.rmvn(M,**precision_products)
 
-SparseMVN = pm.stochastic_from_dist('SparseMVN', mvn_logp, rmvn, mv=True)
+def eta(M, precision_products, backend):
+    "Takes a mean vector M, the products returned by backend.precision_products as a map, and the linear algebra backend module. Passes the arguments to backend.eta and returns the corresponding 'canonical mean' η=Q^{-1}M, where Q is the precision matrix."
+    return backend.eta(M,**precision_products)
 
+SparseMVN = pm.stochastic_from_dist('SparseMVN', mvn_logp, rmvn, mv=True)

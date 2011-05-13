@@ -7,6 +7,14 @@ from stripackd import trmesh, bnodes
 from manifold_2d import *
 import numpy as np
 
+def well_spaced_mesh(n):
+    "Returns a well-spaced mesh of n points on the unit sphere."
+    # FIXME: Not well-spaced yet.
+    X = np.random.normal(size=(3,n))
+    X /= np.sqrt((X**2).sum(axis=0))
+    X = X.T
+    return X
+
 def fortan_index(a, i):
     "A convenience function for converting between indexing starting at 0 (Python) and indexing starting at 1 (Fortran)."
     return a[i-1]
