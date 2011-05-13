@@ -148,7 +148,7 @@ def compile_metropolis_sweep(lpf_string):
     gmrf_metro.gmrfmetro.code = fortran_code
     return gmrf_metro.gmrfmetro
 
-def fast_metropolis_sweep(M,Q,gmrfmetro,x,log_likelihoods,likelihood_variables=None):
+def fast_metropolis_sweep(M,Q,gmrfmetro,x,log_likelihoods,likelihood_variables=None,n_sweeps=1):
     """
     Takes:
     - Mean vector M
@@ -168,11 +168,8 @@ def fast_metropolis_sweep(M,Q,gmrfmetro,x,log_likelihoods,likelihood_variables=N
 
     # Subtract off the mean.
     x_ = x-M
-
-    # There's no need to do these vectorized operations in Fortran.
-    acc = np.random.random(size=len(x))
+    
     cond_std = 1./np.sqrt(diag)
-    norms = np.random.normal(size=len(x))*cond_std
     
     # Square up the likelihood variables.
     if likelihood_variables is None:
@@ -180,7 +177,11 @@ def fast_metropolis_sweep(M,Q,gmrfmetro,x,log_likelihoods,likelihood_variables=N
     likelihood_variables = np.asarray(likelihood_variables, order='F')
 
     # Call the Fortran code, add the mean back on and return.
-    gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, acc, norms, M, likelihood_variables)
+    for i in xrange(n_sweeps): 
+        # There's no need to do these vectorized operations in Fortran.
+        acc = np.random.random(size=len(x))
+        norms = np.random.normal(size=len(x))*cond_std
+        gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, acc, norms, M, likelihood_variables)
 
     return x_ + M, log_likelihoods
         
