@@ -236,40 +236,40 @@ def conditional_mean_and_precision(y,M,Q,Q_obs,L_obs=None,K_obs=None,symbolic=No
 
     return Qc, symbolic, numeric, Mc
     
-if __name__ == '__main__':
-    n = 100
-    nobs = 50
-    B = np.random.normal(size=(n,n)).view(np.matrix)
-    Q = B*B.T
-    L = np.random.normal(size=(n,nobs)).view(np.matrix)
-    M = np.random.normal(size=n).reshape((-1,1))
-    
-    B = np.random.normal(size=(nobs,nobs)).view(np.matrix)
-    Qobs = B*B.T
-    
-    Cx = Q.I
-    Cxy = L.T * Cx
-    Cy = L.T* Cx * L + Qobs.I
-    Ccombo = np.bmat([[Cx,Cxy.T],[Cxy,Cy]])
-
-    Qcombo = Ccombo.I
-    Qx = Q + L*Qobs*L.T
-    Qxy = -L*Qobs
-    # Qcombo_ = np.bmat([[Qx,Qxy],[Qxy.T,Qobs]])
-    
-    # Equivalent.
-    Ccond = Cx-Cxy.T*Cy.I*Cxy
-    # Ccond_try = Qcombo_[:n,:n].I
-    
-    xobs = L.T*M + np.dot(np.linalg.cholesky(Cy), np.random.normal(size=nobs)).reshape((-1,1))
-    Mcond = M+Cxy.T*Cy.I*(xobs-L.T*M)
-    
-    # eta = Qcombo_*np.vstack((M,L.T*M))
-    # etacond = eta[:n]-Qxy*xobs
-    # Mcond_try = Qx.I*etacond
-    # Mcond_try = M+Qx.I*L*Qobs*(xobs-L.T*M)
-    
-    Qx_try, symbolic, numeric, Mcond_try = conditional_mean_and_precision(xobs, M, *map(sparse.csc_matrix, [Q, Qobs, L.T]))
-    
-    print np.abs(Mcond_try.view(np.ndarray).ravel()-Mcond.view(np.ndarray).ravel()).max()
-    
+# if __name__ == '__main__':
+#     n = 100
+#     nobs = 50
+#     B = np.random.normal(size=(n,n)).view(np.matrix)
+#     Q = B*B.T
+#     L = np.random.normal(size=(n,nobs)).view(np.matrix)
+#     M = np.random.normal(size=n).reshape((-1,1))
+#     
+#     B = np.random.normal(size=(nobs,nobs)).view(np.matrix)
+#     Qobs = B*B.T
+#     
+#     Cx = Q.I
+#     Cxy = L.T * Cx
+#     Cy = L.T* Cx * L + Qobs.I
+#     Ccombo = np.bmat([[Cx,Cxy.T],[Cxy,Cy]])
+# 
+#     Qcombo = Ccombo.I
+#     Qx = Q + L*Qobs*L.T
+#     Qxy = -L*Qobs
+#     # Qcombo_ = np.bmat([[Qx,Qxy],[Qxy.T,Qobs]])
+#     
+#     # Equivalent.
+#     Ccond = Cx-Cxy.T*Cy.I*Cxy
+#     # Ccond_try = Qcombo_[:n,:n].I
+#     
+#     xobs = L.T*M + np.dot(np.linalg.cholesky(Cy), np.random.normal(size=nobs)).reshape((-1,1))
+#     Mcond = M+Cxy.T*Cy.I*(xobs-L.T*M)
+#     
+#     # eta = Qcombo_*np.vstack((M,L.T*M))
+#     # etacond = eta[:n]-Qxy*xobs
+#     # Mcond_try = Qx.I*etacond
+#     # Mcond_try = M+Qx.I*L*Qobs*(xobs-L.T*M)
+#     
+#     Qx_try, symbolic, numeric, Mcond_try = conditional_mean_and_precision(xobs, M, *map(sparse.csc_matrix, [Q, Qobs, L.T]))
+#     
+#     print np.abs(Mcond_try.view(np.ndarray).ravel()-Mcond.view(np.ndarray).ravel()).max()
+#     
