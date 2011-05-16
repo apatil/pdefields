@@ -8,7 +8,7 @@ from pdefields.backends import cholmod
 from scipy.special import gamma
 from scipy import sparse
 
-n = 2500
+n = 100
 
 X = spherical.well_spaced_mesh(n)
 
@@ -84,21 +84,27 @@ Qobs.setdiag(1./vars)
 
 import pylab as pl
 
-def metro():
-    S.rand()
-    metro = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,likelihood_vars,n_sweeps=1)
+S.rand()
+metro = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,likelihood_vars,n_sweeps=10000)
+gibbs = pymc_objects.GMRFGibbs(cholmod, S, vals, M, Q, Qobs, pattern_products=pattern_products)
+
+def metrostep():
     metro.step()
     pl.figure(1)
     map_S(S)
     pl.title('Metropolis')
 
-def gibbs():
-    S.rand()
-    gibbs = pymc_objects.GMRFGibbs(cholmod, S, vals, M, Q, Qobs, pattern_products=pattern_products)
+def gibbsstep():
     gibbs.step()
     pl.figure(2)
     map_S(S)
     pl.title('Gibbs')
     
-metro()
-gibbs()
+devs = []
+for i in xrange(100):
+    metro.step()
+    devs.append(S.value-S.last_value)
+devs = np.array(devs)
+
+metrostep()
+gibbsstep()
