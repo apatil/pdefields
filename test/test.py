@@ -7,7 +7,7 @@ from pdefields import spherical, interface, operators, backends
 from pdefields.backends import cholmod
 from scipy.special import gamma
 
-n = 25000
+n = 250
 
 X = spherical.well_spaced_mesh(n)
 
@@ -67,10 +67,10 @@ lpf = [lambda x: 0 for i in xrange(n)]
 lp = 0*S.value
 
 lpf_str = """
-if (dabs({LV}({I},1)).GT.0.3) then
-{LP}={X}
+if (dabs(lv(i,1)).GT.0.3) then
+lpp=xp
 else
-{LP}=-{X}
+lpp=-xp
 end if
 """
 lp = 0*S.value
