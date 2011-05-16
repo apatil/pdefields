@@ -70,9 +70,9 @@ lp = 0*S.value
 # TODO: Statistical test comparing Metropolis and Gibbs
 lpf_str = """
 if (dabs(lv(i,1)).GT.0.3) then
-lpp=xp
+lpp={X}
 else
-lpp=-xp
+lpp=-{X}
 end if
 """
 lp = 0*S.value

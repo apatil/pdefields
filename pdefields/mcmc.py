@@ -9,13 +9,13 @@ from scipy import sparse
 def compile_metropolis_sweep(lpf_string):
     """
     Takes an unindented template of Fortran code with the following template parameters:
-    - xp: The value of the field at a vertex.
+    - {X}: The value of the field at a vertex.
     - i: The index at the vertex
     - lv: Variables other than X that participate in the likelihood, as a len(x)-by-m array.
     - lpp: The log-likelihood at that vertex for value xp.
     The code should assign to lp. A non-optimized logistic regression example:
     
-    lX = dexp(xp)/dexp(1+xp)
+    lX = dexp({X})/dexp(1+{X})
     n = lv(i,1)
     k = lv(i,2)
     lpp = n*dlog(lX) + k*dlog(1-lX)
@@ -26,6 +26,7 @@ def compile_metropolis_sweep(lpf_string):
         return '\n'.join([' '*6+l for l in s.splitlines()])
     
     # Instantiate the template with the likelihood code snippet.
+    lpf_string = lpf_string.replace('{X}','(xp+M(i))')
     fortran_code = file(os.path.join(os.path.split(pdefields.__file__)[0],'fast_metro.f')).read()
     fortran_code = fortran_code.replace('{LPF}', fortran_indent(lpf_string))
     lpf_hash = hashlib.sha1(fortran_code).hexdigest()
@@ -34,6 +35,10 @@ def compile_metropolis_sweep(lpf_string):
     try:
         exec('import gmrf_metro_%s as gmrf_metro'%lpf_hash)
     except ImportError:
+        for l in lpf_string.splitlines():
+            if len(l)>72-6:
+                raise RuntimeError, 'Line "%s" in your log-likelihood code snippet is too long, Fortran will hurl.'%l
+                
         f2py.compile(fortran_code, modulename='gmrf_metro_%s'%lpf_hash)
     exec('import gmrf_metro_%s as gmrf_metro'%lpf_hash)
     
@@ -62,8 +67,6 @@ def fast_metropolis_sweep(M,Q,gmrfmetro,x,log_likelihoods,likelihood_variables=N
     # Subtract off the mean.
     x_ = x-M
     
-    cond_std = 1./np.sqrt(diag)
-    
     # Square up the likelihood variables.
     if likelihood_variables is None:
         likelihood_variables = np.zeros(len(x))
@@ -73,8 +76,8 @@ def fast_metropolis_sweep(M,Q,gmrfmetro,x,log_likelihoods,likelihood_variables=N
     for i in xrange(n_sweeps): 
         # There's no need to do these vectorized operations in Fortran.
         acc = np.random.random(size=len(x))
-        norms = np.random.normal(size=len(x))*cond_std
+        norms = np.random.normal(size=len(x))
         
-        gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, acc, norms, likelihood_variables)
+        gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, M, acc, norms, likelihood_variables)
 
     return x_ + M, log_likelihoods
