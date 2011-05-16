@@ -193,7 +193,7 @@ def conditional_mean_and_precision(y,M,Q,Q_obs,L_obs=None,K_obs=None,symbolic=No
     Returns the conditional mean and precision of x in the conjugate submodel
     
     x ~ N(M,Q^{-1})
-    y ~ N(L_obs x + k_obs, Q_obs^{-1})
+    y ~ N(L_obs x + K_obs, Q_obs^{-1})
     
     Takes:
     - Observed value of y
