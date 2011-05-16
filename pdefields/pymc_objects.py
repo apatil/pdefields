@@ -36,11 +36,6 @@ class GMRFMetropolis(pm.StepMethod):
         - n_sweeps: The number of compiled Metropolis sweeps to do per step.
         """
 
-        if len(x.extended_children-set(children_list))>0:
-            raise ValueError, "Children_list must contain all of %s's extended children."%self.x
-            
-        if pm.utils.value(Q).__class__ not in [sparse.csc.csc_matrix, sparse.csc.csr_matrix]:
-            raise ValueError, "The value of Q must be a SciPy CSC or CSR matrix."
         self.x = x
         self.M = M
         self.Q = Q

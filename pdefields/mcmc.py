@@ -1,3 +1,7 @@
+"""
+This module contains 'generic' MCMC algorithms, generic meaning that they work on any SciPy CSR or CSC precision matrix without requiring specialized linear algebra found in the backends. This class does not include Gibbs steps, which require whole matrix operations. However, it does include one-vertex-at-a-time Metropolis steps.
+"""
+
 import hashlib
 from numpy import f2py
 import pdefields
@@ -55,8 +59,11 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10
     - Current state vector x.
     - Optionally, any vertex-specific variables needed to compute the likelihoods as an m-by-(len(x)) array. For example, N and K in the binomial likelihood.
     
-    Returns a new value for x, obtained by one-at-a-time Metropolis, and the corresponding log-likelihoods.
+    Returns a new value for x, obtained by one-at-a-time Metropolis.
     """
+    if Q.__class__ not in [sparse.csc.csc_matrix, sparse.csr.csr_matrix]:
+        raise ValueError, "The value of Q must be a SciPy CSC or CSR matrix."
+    
     # Unpack the sparse matrix.
     ind = Q.indices
     dat = Q.data
@@ -82,4 +89,4 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10
         
         gmrf_metro.gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, M, acc, norms, likelihood_variables)
 
-    return x_ + M, log_likelihoods
+    return x_ + M
