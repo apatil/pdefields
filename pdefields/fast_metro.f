@@ -11,6 +11,7 @@
       double precision diag(nx), acc(nx), norms(nx), mc(nx)
       double precision xp, lv(nx,nv), lkp
       integer ind(nnz), ptr(nx+1), nx, nnz, i, j, nv
+
 !       x and lp are the current state and log-likelihood values.
 !       They will both be overwritten IN-PLACE.
 !
@@ -22,7 +23,9 @@
 !       lv are the other vertex-specific variables used in computing the likelihood.
 !       They should be stored as an (nx, nv) array, where nv is the
 !       number of variables.
+
       do i=1,nx
+
 !         mc is the conditional mean of x(i),
 !         (Q(i,i) x(i) - Q(i,:) x) / Q(i,i)
           mc(i) = diag(i)*x(i)
@@ -38,6 +41,7 @@
           {LIKELIHOOD_CODE}
           
 !         Accept or reject.
+!           print *,i,x(i),xp,lv(i,1),lv(i,2),lk(i),lkp
           if ((lkp-lk(i)).GT.dlog(acc(i))) then
               lk(i)=lkp
               x(i)=xp
@@ -56,6 +60,7 @@
       implicit none
       double precision x(nx), lk(nx), M(nx), lkp, lv(nx,nv), xp
       integer nx, i, nv
+
 !       x is the current state. The log-likelihood will be returned for it.
 !       M is the mean vector.
 !       lv are the other vertex-specific variables used in computing the likelihood.
@@ -63,6 +68,7 @@
 !       number of variables.
 !
 !       The return value will be a vector of log-likelihoods.
+
       do i=1,nx
           
 !         This is a template parameter that gets substituted for at runtime. It should contain Fortran code that computes the log-likelihood, in terms of {X}, i, lv and lkp. {X} will be replaced with (xp+M(i)), that is the actual proposed value.

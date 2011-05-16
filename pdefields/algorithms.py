@@ -112,9 +112,6 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10
         # There's no need to do these vectorized operations in Fortran.
         acc = np.random.random(size=len(x))
         norms = np.random.normal(size=len(x))
-        
-        # import pdb
-        # pdb.set_trace()
         gmrf_metro.gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, M, acc, norms, likelihood_variables)
 
     return x_ + M

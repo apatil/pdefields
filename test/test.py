@@ -76,7 +76,7 @@ likelihood_vars = np.vstack((vals,vars)).reshape((-1,2))
 # TODO: Statistical test comparing Metropolis and Gibbs
 Qobs = sparse.csc_matrix((n,n))
 
-lpf_str = "lkp = ({X}-lv(i,1))**2/2/lv(i,2)"
+lpf_str = "lkp = -({X}-lv(i,1))**2/2/lv(i,2)"
 Qobs.setdiag(1./vars)
 
 # lpf_str = "lkp=0"
@@ -86,7 +86,7 @@ import pylab as pl
 
 def metro():
     S.rand()
-    metro = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,likelihood_vars,n_sweeps=1000)
+    metro = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,likelihood_vars,n_sweeps=1)
     metro.step()
     pl.figure(1)
     map_S(S)
