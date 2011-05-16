@@ -8,7 +8,7 @@ from pdefields.backends import cholmod
 from scipy.special import gamma
 from scipy import sparse
 
-n = 25000
+n = 2500
 
 X = spherical.well_spaced_mesh(n)
 
@@ -26,8 +26,8 @@ Ctilde = backends.cholmod.into_matrix_type(Ctilde)
 G = backends.cholmod.into_matrix_type(G)
 M = np.zeros(n)
 
-kappa = pm.Exponential('kappa',1,value=1)
-alpha = pm.DiscreteUniform('alpha',1,10,value=1.)
+kappa = pm.Exponential('kappa',1,value=3)
+alpha = pm.DiscreteUniform('alpha',1,10,value=2.)
 diag_pert = pm.Exponential('diag_pert',1,value=0.)
 
 @pm.deterministic
@@ -69,26 +69,36 @@ lp = 0*S.value
 
 
 vals = X[:,0]
-vars = pm.rgamma(4,4,size=n)/1000
+vars = pm.rgamma(4,4,size=n)/10
 
 likelihood_vars = np.vstack((vals,vars)).reshape((-1,2))
 
 # TODO: Statistical test comparing Metropolis and Gibbs
-lpf_str = """
-lkp = ({X}-lv(i,1))**2/2/lv(i,2)
-"""
 Qobs = sparse.csc_matrix((n,n))
+
+lpf_str = "lkp = ({X}-lv(i,1))**2/2/lv(i,2)"
 Qobs.setdiag(1./vars)
 
-# gmrfmetro = mcmc.compile_metropolis_sweep(lpf_str)
-# S.value = mcmc.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,likelihood_vars,n_sweeps=100)
+# lpf_str = "lkp=0"
+# Qobs.setdiag(0*vars+1e-8)
 
-# metro = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,likelihood_vars,n_sweeps=100)
-# metro.step()
+import pylab as pl
 
-gibbs = pymc_objects.GMRFGibbs(cholmod, S, vals, M, Q, Qobs, pattern_products=pattern_products)
-gibbs.step()
+def metro():
+    S.rand()
+    metro = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,likelihood_vars,n_sweeps=1000)
+    metro.step()
+    pl.figure(1)
+    map_S(S)
+    pl.title('Metropolis')
 
-map_S(S)
-
-# print condm1-condm3
+def gibbs():
+    S.rand()
+    gibbs = pymc_objects.GMRFGibbs(cholmod, S, vals, M, Q, Qobs, pattern_products=pattern_products)
+    gibbs.step()
+    pl.figure(2)
+    map_S(S)
+    pl.title('Gibbs')
+    
+metro()
+gibbs()

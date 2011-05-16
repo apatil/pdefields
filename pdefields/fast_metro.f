@@ -9,7 +9,7 @@
       implicit none
       double precision x(nx), dat(nnz), lk(nx), M(nx)
       double precision diag(nx), acc(nx), norms(nx), mc(nx)
-      double precision xp, lpp, lv(nx,nv), lp, lkp
+      double precision xp, lv(nx,nv), lkp
       integer ind(nnz), ptr(nx+1), nx, nnz, i, j, nv
 !       x and lp are the current state and log-likelihood values.
 !       They will both be overwritten IN-PLACE.
@@ -37,12 +37,8 @@
 !         This is a template parameter that gets substituted for at runtime. It should contain Fortran code that computes the log-likelihood, in terms of {X}, i, lv and lkp. {X} will be replaced with (xp+M(i)), that is the actual proposed value.
           {LIKELIHOOD_CODE}
           
-!           Add on the conditional log-prior densities, up to a constant of proportionality.
-          lp = lk(i) + (x(i)-mc(i))**2/2/diag(i)
-          lpp = lkp + (xp-mc(i))**2/2/diag(i)
-          
 !         Accept or reject.
-          if ((lpp-lp).GT.dlog(acc(i))) then
+          if ((lkp-lk(i)).GT.dlog(acc(i))) then
               lk(i)=lkp
               x(i)=xp
           end if
@@ -58,8 +54,8 @@
 !f2py intent(hide) nx, nv
 !f2py intent(out) lk
       implicit none
-      double precision x(nx), lk(nx), M(nx), lkp, lv(nx,nv)
-      integer nx, i, nv, xp
+      double precision x(nx), lk(nx), M(nx), lkp, lv(nx,nv), xp
+      integer nx, i, nv
 !       x is the current state. The log-likelihood will be returned for it.
 !       M is the mean vector.
 !       lv are the other vertex-specific variables used in computing the likelihood.
@@ -73,7 +69,7 @@
           xp = x(i) 
           
           {LIKELIHOOD_CODE}
-          
+
           lk(i) = lkp
           
       end do

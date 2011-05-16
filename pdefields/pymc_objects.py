@@ -1,12 +1,11 @@
 # -*- coding: UTF-8 -*-
 
-"High-level interface to multivariate normal variables. Retargetable linear algebra backend."
+"High-level interface to Gaussian Markov random fields and associated fitting algorithms. Retargetable linear algebra backend."
+
 import numpy as np
 import pymc as pm
 import algorithms
 from scipy import sparse
-
-# TODO: Conditional versions of all.
 
 def mvn_logp(x,M,precision_products,backend):
     "Takes a candidate value x, a mean vector M, the products returned by backend.precision_products as a map, and the linear algebra backend module. Passes the arguments to backend.mvn_logp and returns the log-probability of x given M and the precision matrix represented in precision_products."
@@ -16,10 +15,6 @@ def rmvn(M,precision_products,backend):
     "Takes a mean vector M, the products returned by backend.precision_products as a map, and the linear algebra backend module. Passes the arguments to backend.rmvn and returns a random draw x from the multivariate normal variable with mean M and the precision matrix represented in precision_products."
     return backend.rmvn(M,**precision_products)
 
-def eta(M, precision_products, backend):
-    "Takes a mean vector M, the products returned by backend.precision_products as a map, and the linear algebra backend module. Passes the arguments to backend.eta and returns the corresponding 'canonical mean' η=Q^{-1}M, where Q is the precision matrix."
-    return backend.eta(M,**precision_products)
-
 SparseMVN = pm.stochastic_from_dist('SparseMVN', mvn_logp, rmvn, mv=True)
 
 class GMRFGibbs(pm.StepMethod):
@@ -28,7 +23,6 @@ class GMRFGibbs(pm.StepMethod):
         Applies to the following conjugate submodel:
         x ~ N(M,Q^{-1})
         obs ~ N(L_obs x + K_obs, Q_obs^{-1})
-        
         
         Takes the following arguments:
         - backend: A linear algebra backend, for example CHOLMOD
