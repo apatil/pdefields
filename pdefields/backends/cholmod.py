@@ -92,7 +92,7 @@ def mvn_logp(x,M,Q,det,F,P,Pbak,sqrtD):
     d = (x-M)[P]
     return -.5*np.dot(d,Q*d) + .5*det - .5*len(M)*np.log(2.*np.pi)
     
-def conditional_mean_and_precision_products(y,M,Q_conditional,Q_obs,L_obs=None,K_obs=None,symbolic=None):
+def conditional_mean_and_precision_products(y,M,Q_conditional,Q_obs,symbolic,L_obs=None,K_obs=None):
     """    
     Returns the conditional mean and precision of x in the conjugate submodel
     
@@ -114,10 +114,6 @@ def conditional_mean_and_precision_products(y,M,Q_conditional,Q_obs,L_obs=None,K
     # Note that the joint precision is
     # [Q + L_obs' Q_obs L_obs      -L_obs' Q_obs]
     # [-Q_obs L_obs                 Q_obs]
-    
-    # If no symbolic factorization was provided, compute it here.
-    if symbolic is None:
-        symbolic = cholmod.analyze(Qc)
     
     # Numeric factorization and conditional mean.
     if L_obs is None:

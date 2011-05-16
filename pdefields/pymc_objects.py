@@ -23,7 +23,24 @@ def eta(M, precision_products, backend):
 SparseMVN = pm.stochastic_from_dist('SparseMVN', mvn_logp, rmvn, mv=True)
 
 class GMRFGibbs(pm.StepMethod):
-    def __init__(self, backend, x, obs, M, Q,  Q_obs, L_obs=None, K_obs=None):
+    def __init__(self, backend, x, obs, M, Q,  Q_obs, L_obs=None, K_obs=None, pattern_products=None):
+        """
+        Applies to the following conjugate submodel:
+        x ~ N(M,Q^{-1})
+        obs ~ N(L_obs x + K_obs, Q_obs^{-1})
+        
+        
+        Takes the following arguments:
+        - backend: A linear algebra backend, for example CHOLMOD
+        - x: a SparseMVN instance
+        - obs: A normal variable whose mean is a linear transformation of x.
+        - M: The prior mean of M.
+        - Q: The prior precision of M.
+        - Q_obs: The precision of obs conditional on x.
+        - L_obs: A sparse matrix, optional.
+        - K_obs: a vector, optional.
+        - pattern_products: If the sparsity pattern of the conditional precision of x on obs can be computed ahead of time, the backend's pattern-specific computations can be passed in to save some work.
+        """
         self.x = x
         self.backend = backend
         self.obs = obs
@@ -38,15 +55,17 @@ class GMRFGibbs(pm.StepMethod):
             "The conditional precision matrix."
             return algorithms.conditional_precision(Q,Q_obs,L_obs)
         
-        @pm.deterministic(trace=False)
-        def pattern_products(Qc=Qc,backend=backend):
-            "The backend-specific computations that can be got from just the sparsity pattern, e.g. the symbolic Cholesky factorization."
-            return backend.pattern_to_products(Qc)
+        if pattern_products is None:
+            @pm.deterministic(trace=False)
+            def pattern_products(Qc=Qc,backend=backend):
+                "The backend-specific computations that can be got from just the sparsity pattern, e.g. the symbolic Cholesky factorization."
+                return backend.pattern_to_products(Qc)
         
         @pm.deterministic(trace=False)
         def M_and_precision_products(obs=obs, M=M, Qc=Qc, Q_obs=Q_obs, L_obs=L_obs, K_obs=K_obs, pp=pattern_products, backend=backend):
-            return backend.conditional_mean_and_precision_products(obs, M, Qc, Q_obs, L_obs, K_obs, **pp)
-                
+            "The conditional mean and the backend-specific computations from the actual precision matrix."
+            return backend.conditional_mean_and_precision_products(obs, M, Qc, Q_obs, L_obs=L_obs, K_obs=K_obs, **pp)
+        
         self.Qc = Qc
         self.pattern_products = pattern_products
         self.M_and_precision_products = M_and_precision_products
