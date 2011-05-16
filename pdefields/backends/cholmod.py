@@ -2,7 +2,9 @@
 """
 A linear algebra backend that uses sparse, cholesky-based operations.
 """
-__all__ = ['into_matrix_type', 'precision_to_products', 'pattern_to_products', 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx', 'eta', 'conditional_mean_and_precision']
+
+# The __all__ list defines the interface every backend must expose.
+__all__ = ['into_matrix_type', 'precision_to_products', 'pattern_to_products', 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx', 'conditional_mean_and_precision_products']
 
 import numpy as np
 import scipy
@@ -89,26 +91,8 @@ def mvn_logp(x,M,Q,det,F,P,Pbak,sqrtD):
      """
     d = (x-M)[P]
     return -.5*np.dot(d,Q*d) + .5*det - .5*len(M)*np.log(2.*np.pi)
-
-def eta(M,Q,det,F,P,Pbak,sqrtD):
-    u"""
-    Takes the following:
-    - x: A candidate value as a vector.
-    - M: A mean vector
-    - Q: A sparse precision matrix
-    - det: The determinant of Q
-    - F: A scikits.sparse Factor object representing the Cholesky factorization of Q
-    - P: A permutation vector
-    - Pbak: The permutation vector that inverts P.
-    - sqrtD: The square root of the diagonal matrix D from Cholmod's Cholesky factorization.    
-    Returns the "canonical mean" η=Q M.
-     """
-    return Q*M        
-
-def id(x):
-    return x    
     
-def conditional_mean_and_precision(y,M,Q,Q_obs,L_obs=None,K_obs=None,symbolic=None):
+def conditional_mean_and_precision_products(y,M,Q_conditional,Q_obs,L_obs=None,K_obs=None,symbolic=None):
     """    
     Returns the conditional mean and precision of x in the conjugate submodel
     
@@ -118,43 +102,41 @@ def conditional_mean_and_precision(y,M,Q,Q_obs,L_obs=None,K_obs=None,symbolic=No
     Takes:
     - Observed value of y
     - Mean vector M
-    - Sparse SPD matrices Q and Qobs
+    - Sparse SPD matrices Q_conditional (the precision of x conditional on y) and Qobs
     - Sparse matrix, dense matrix or LinearOperator L_obs (optional)
     - Offset vector K_obs (optional)
     - Symbolic Cholesky factorization previously returned by conditional_mean_and_precision (optional)
     
     Returns:
-    - Conditional precision as a CSC matrix
-    - Symbolic Cholesky factorization of conditional precision as a Cholmod Factor
-    - Numeric "
-    - Conditional mean 
+    - Conditional mean
+    - The output of precision_to_products, applied to the conditional precision.
     """
     # Note that the joint precision is
     # [Q + L_obs' Q_obs L_obs      -L_obs' Q_obs]
     # [-Q_obs L_obs                 Q_obs]
-    
-    # L_obs defaults to the identity operator
-    if L_obs is None:
-        from scipy.sparse import linalg
-        L_obs = linalg.LinearOperator((len(y),len(x)), id, id)
-        
-    # K_obs defaults to the zero vector.
-    if K_obs is None:
-        K_obs = 0*y
-    
-    # Conditional precision.
-    Qc = Q+(Q_obs*L_obs).__rmul__(L_obs.T)
     
     # If no symbolic factorization was provided, compute it here.
     if symbolic is None:
         symbolic = cholmod.analyze(Qc)
     
     # Numeric factorization and conditional mean.
-    delta = y-L_obs*M-K_obs
-    numeric = symbolic.cholesky(Qc)
-    Mc = M + numeric.solve_A(L_obs.T*Q_obs*delta).reshape(M.shape)
+    if L_obs is None:
+        LM = M
+        LQ_obs = Q_obs
+    else:
+        LM = L_obs*M
+        LQ_obs = L_obs.T*Q_obs
+    
+    if K_obs is None:
+        delta = y-LM
+    else:
+        delta = y-LM-K_obs
+        
+    Qc_precprod = precision_to_products(Q_conditional,0,symbolic)
 
-    return Qc, symbolic, numeric, Mc
+    Mc = M + Qc_precprod['F'].solve_A(LQ_obs*delta).reshape(M.shape)
+
+    return Mc, Qc_precprod
     
 # if __name__ == '__main__':
 #     n = 100

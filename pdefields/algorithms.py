@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 This module contains 'generic' MCMC algorithms, generic meaning that they work on any SciPy CSR or CSC precision matrix without requiring specialized linear algebra found in the backends. This class does not include Gibbs steps, which require whole matrix operations. However, it does include one-vertex-at-a-time Metropolis steps.
 """
@@ -9,6 +10,31 @@ import os
 import numpy as np
 import scipy
 from scipy import sparse
+
+# Conditional precision.
+def conditional_precision(Q,Q_obs,L_obs):
+    """
+    Returns the conditional precision of x in the conjugate submodel
+    
+    x ~ N(M,Q^{-1})
+    y ~ N(L_obs x + K_obs, Q_obs^{-1})
+     """
+    if L_obs is None:
+        Qc = Q+Q_obs
+    else:
+        # Do it this way round to avoid switching from CSC to CSR or vice versa.
+        Qc = Q+(Q_obs*L_obs).__rmul__(L_obs.T)
+    
+    return Qc
+        
+def eta(M,Q):
+    u"""
+    Takes the following:
+    - M: A mean vector
+    - Q: A sparse precision matrix
+    Returns the "canonical mean" η=Q M.
+     """
+    return Q*M
 
 def compile_metropolis_sweep(fortran_likelihood_code):
     """

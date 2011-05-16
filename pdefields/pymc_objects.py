@@ -3,7 +3,7 @@
 "High-level interface to multivariate normal variables. Retargetable linear algebra backend."
 import numpy as np
 import pymc as pm
-import mcmc
+import algorithms
 from scipy import sparse
 
 # TODO: Conditional versions of all.
@@ -22,13 +22,48 @@ def eta(M, precision_products, backend):
 
 SparseMVN = pm.stochastic_from_dist('SparseMVN', mvn_logp, rmvn, mv=True)
 
+class GMRFGibbs(pm.StepMethod):
+    def __init__(self, backend, x, obs, M, Q,  Q_obs, L_obs=None, K_obs=None):
+        self.x = x
+        self.backend = backend
+        self.obs = obs
+        self.M = M
+        self.Q = Q
+        self.Q_obs = Q_obs
+        self.L_obs = L_obs
+        self.K_obs = K_obs
+        
+        @pm.deterministic(trace=False)
+        def Qc(Q=Q,Q_obs=Q_obs,L_obs=L_obs):
+            "The conditional precision matrix."
+            return algorithms.conditional_precision(Q,Q_obs,L_obs)
+        
+        @pm.deterministic(trace=False)
+        def pattern_products(Qc=Qc,backend=backend):
+            "The backend-specific computations that can be got from just the sparsity pattern, e.g. the symbolic Cholesky factorization."
+            return backend.pattern_to_products(Qc)
+        
+        @pm.deterministic(trace=False)
+        def M_and_precision_products(obs=obs, M=M, Qc=Qc, Q_obs=Q_obs, L_obs=L_obs, K_obs=K_obs, pp=pattern_products, backend=backend):
+            return backend.conditional_mean_and_precision_products(obs, M, Qc, Q_obs, L_obs, K_obs, **pp)
+                
+        self.Qc = Qc
+        self.pattern_products = pattern_products
+        self.M_and_precision_products = M_and_precision_products
+        
+        pm.StepMethod.__init__(self, [x])
+        
+    def step(self):
+        v = self.M_and_precision_products.value
+        self.x.value = self.backend.rmvn(v[0], **v[1])
+
 class GMRFMetropolis(pm.StepMethod):
     def __init__(self, x, likelihood_code, M, Q, likelihood_variables, n_sweeps):
         """
         Takes the following arguments:
         - x: a SparseMVN instance.
         - likelihood_code: A Fortran code snippet for evaluating the likelihoods. 
-          See the documentation of mcmc.compile_metropolis_sweep.
+          See the documentation of algorithms.compile_metropolis_sweep.
         - M: A mean vector or a PyMC variable valued as one.
         - Q: A precision matrix, in SciPy CSR or CSC format, or a PyMC variable valued as one.
         - likelihood_variables: All the vertex-specific variables needed to compute the likelihoods.
@@ -41,10 +76,12 @@ class GMRFMetropolis(pm.StepMethod):
         self.Q = Q
         self.likelihood_variables = likelihood_variables
         self.n_sweeps = n_sweeps
-        self.compiled_metropolis_sweep = mcmc.compile_metropolis_sweep(likelihood_code)
+        self.compiled_metropolis_sweep = algorithms.compile_metropolis_sweep(likelihood_code)
+        
+        pm.StepMethod.__init__(self, [x])
     
     def step(self):
-            self.S.value, _ = mcmc.fast_metropolis_sweep(pm.utils.value(self.M),
+            self.x.value = algorithms.fast_metropolis_sweep(pm.utils.value(self.M),
                                         pm.utils.value(self.Q),
                                         self.compiled_metropolis_sweep,
                                         self.x.value,

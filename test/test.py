@@ -6,6 +6,7 @@ import pymc as pm
 from pdefields import spherical, pymc_objects, operators, backends, mcmc
 from pdefields.backends import cholmod
 from scipy.special import gamma
+from scipy import sparse
 
 n = 2500
 
@@ -67,19 +68,26 @@ lpf = [lambda x: 0 for i in xrange(n)]
 lp = 0*S.value
 
 
+vals = X[:,0]
+vars = pm.rgamma(4,4,size=n)/1000
+
+likelihood_vars = np.vstack((vals,vars)).reshape((-1,2))
+
 # TODO: Statistical test comparing Metropolis and Gibbs
 lpf_str = """
-if (dabs(lv(i,1)).GT.0.3) then
-lkp={X}
-else
-lkp=-{X}
-end if
+lkp = ({X}-lv(i,1))**2/2/lv(i,2)
 """
+Qobs = sparse.csc_matrix((n,n))
+Qobs.setdiag(1./vars)
 
-gmrfmetro = mcmc.compile_metropolis_sweep(lpf_str)
-S.value = mcmc.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,X,n_sweeps=100)
+# gmrfmetro = mcmc.compile_metropolis_sweep(lpf_str)
+# S.value = mcmc.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,likelihood_vars,n_sweeps=100)
 
-# sm = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,X,n_sweeps=100)
+# metro = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,likelihood_vars,n_sweeps=100)
+# metro.step()
+
+gibbs = pymc_objects.GMRFGibbs(cholmod, S, vals, M, Q, Qobs)
+gibbs.step()
 
 map_S(S)
 
