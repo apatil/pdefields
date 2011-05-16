@@ -3,11 +3,11 @@
 
 import numpy as np
 import pymc as pm
-from pdefields import spherical, interface, operators, backends
+from pdefields import spherical, pymc_objects, operators, backends, mcmc
 from pdefields.backends import cholmod
 from scipy.special import gamma
 
-n = 250
+n = 2500
 
 X = spherical.well_spaced_mesh(n)
 
@@ -52,7 +52,7 @@ pattern_products = cholmod.pattern_to_products(Q.value)
 def precision_products(Q=Q, p=pattern_products, diag_pert=diag_pert,normconst=normconst):
     return cholmod.precision_to_products(Q, diag_pert=diag_pert*normconst, **p)
 
-S=interface.SparseMVN('S',M, precision_products, cholmod)
+S=pymc_objects.SparseMVN('S',M, precision_products, cholmod)
 
 def map_S(S):
     # Make a map
@@ -66,6 +66,8 @@ S.rand()
 lpf = [lambda x: 0 for i in xrange(n)]
 lp = 0*S.value
 
+
+# TODO: Statistical test comparing Metropolis and Gibbs
 lpf_str = """
 if (dabs(lv(i,1)).GT.0.3) then
 lpp=xp
@@ -76,8 +78,9 @@ end if
 lp = 0*S.value
 lp[np.where(np.abs(X[:,0])>.3)]=S.value[np.where(X[:,0]>.3)]
 
-gmrfmetro = cholmod.compile_metropolis_sweep(lpf_str)
-S.value,lp = cholmod.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,lp,X,n_sweeps=100)
+gmrfmetro = mcmc.compile_metropolis_sweep(lpf_str)
+S.value,lp = mcmc.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,lp,X,n_sweeps=100)
+
 map_S(S)
 
 # print condm1-condm3
