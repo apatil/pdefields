@@ -184,30 +184,69 @@ def fast_metropolis_sweep(M,Q,gmrfmetro,x,log_likelihoods,likelihood_variables=N
         gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, acc, norms, M, likelihood_variables)
 
     return x_ + M, log_likelihoods
-        
+    
+def conditional_mean_and_precision(M,Q,Q_obs,y,K_obs,L_obs=None):
+    """
+    Returns the conditional mean and precision of x in the conjugate submodel
+    
+    x ~ N(M,Q^{-1})
+    y ~ N(L_obs x + k_obs, Q_obs^{-1})
+    """
+    # Note that the joint precision is
+    # [Q + L_obs' Q_obs L_obs      -L_obs' Q_obs]
+    # [-Q_obs L_obs                 Q_obs]
+    
+    if L_obs:
+        delta = y-L_obs*M-K_obs
+        Qc = Q+(Q_obs*L_obs).__rmul__(L_obs.T)
+        Mc = M+Qc.solve(L_obs.T*Q_obs*delta)
+    else:
+        delta = y-M
+        Qc = Q+Q_obs
+    return Mc,Qc
+    
+def gibbs(M,Q,L_obs,k_obs,Q_obs,obs_val,symbolic):
+    """
+    Returns a sample for x from the conjugate submodel
 
-# if __name__ == '__main__':
-#     OK = False
-#     while OK==False:
-#         try:
-#             B = np.random.normal(size=(100,100))
-#             ind = np.arange(B.shape[0])
-#             for i in xrange(B.shape[0]):
-#                 np.random.shuffle(ind)
-#                 B[i,ind[:B.shape[0]-5]]=0
-#     
-#             A = sparse.csc_matrix(np.dot(B,B.T))
-#             # A = sparse.csc_matrix(np.eye(100)*np.random.random(size=100))
-#             pattern_products = pattern_to_products(A)
-#             precision_products = precision_to_products(A, **pattern_products)
-#             OK = True
-#         except:
-#             pass
-#     m = np.random.normal(size=A.shape[0])
-#     x = np.random.normal(size=A.shape[0])    
-#     l1  = mvn_logp(x,m,**precision_products)
-#     import pymc as pm
-#     l2 = pm.mv_normal_like(x,m,A.todense())
-#     print l1,l2
-#     # # z = [rand(m,precision_products,1) for i in xrange(1000)]
-#     # # C_empirical = np.cov(np.array(z).T)
+    x ~ N(M,Q^{-1})
+    y ~ N(L_obs x + k_obs, Q_obs^{-1})
+
+    where y has been observed to be obs_val. The input argument 'symbolic' should be the symbolic Cholesky factorization returned by gibbs_symbolic
+    """
+    raise NotImplementedError
+
+if __name__ == '__main__':
+    n = 100
+    nobs = 50
+    B = np.random.normal(size=(n,n)).view(np.matrix)
+    Q = B*B.T
+    L = np.random.normal(size=(n,nobs)).view(np.matrix)
+    M = np.random.normal(size=n).reshape((-1,1))
+    
+    B = np.random.normal(size=(nobs,nobs)).view(np.matrix)
+    Qobs = B*B.T
+    
+    Cx = Q.I
+    Cxy = L.T * Cx
+    Cy = L.T* Cx * L + Qobs.I
+    Ccombo = np.bmat([[Cx,Cxy.T],[Cxy,Cy]])
+    Qcombo = Ccombo.I
+    
+    Qx = Q + L*Qobs*L.T
+    Qxy = -L*Qobs
+    Qcombo_ = np.bmat([[Qx,Qxy],[Qxy.T,Qobs]])
+    
+    # Equivalent.
+    Ccond = Cx-Cxy.T*Cy.I*Cxy
+    Ccond_try = Qcombo_[:n,:n].I
+    
+    xobs = L.T*M + np.dot(np.linalg.cholesky(Cy), np.random.normal(size=nobs)).reshape((-1,1))
+    Mcond = M+Cxy.T*Cy.I*(xobs-L.T*M)
+    
+    eta = Qcombo_*np.vstack((M,L.T*M))
+    etacond = eta[:n]-Qxy*xobs
+    Mcond_try = Qx.I*etacond
+    
+    print np.abs(Mcond_try-Mcond).max()
+    

@@ -77,7 +77,7 @@ lp = 0*S.value
 lp[np.where(np.abs(X[:,0])>.3)]=S.value[np.where(X[:,0]>.3)]
 
 gmrfmetro = cholmod.compile_metropolis_sweep(lpf_str)
-S.value,lp = cholmod.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,lp,X)
+S.value,lp = cholmod.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,lp,X,n_sweeps=100)
 map_S(S)
 
 # print condm1-condm3
