@@ -183,39 +183,59 @@ def fast_metropolis_sweep(M,Q,gmrfmetro,x,log_likelihoods,likelihood_variables=N
         norms = np.random.normal(size=len(x))*cond_std
         gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, acc, norms, M, likelihood_variables)
 
-    return x_ + M, log_likelihoods
+    return x_ + M, log_likelihoods    
+
+def id(x):
+    return x    
     
-def conditional_mean_and_precision(M,Q,Q_obs,y,K_obs,L_obs=None):
-    """
+def conditional_mean_and_precision(y,M,Q,Q_obs,L_obs=None,K_obs=None,symbolic=None):
+    """    
     Returns the conditional mean and precision of x in the conjugate submodel
     
     x ~ N(M,Q^{-1})
     y ~ N(L_obs x + k_obs, Q_obs^{-1})
+    
+    Takes:
+    - Observed value of y
+    - Mean vector M
+    - Sparse SPD matrices Q and Qobs
+    - Sparse matrix, dense matrix or LinearOperator L_obs (optional)
+    - vector K_obs (optional)
+    - Symbolic Cholksy factorization previously returned by conditional_mean_and_precision (optional)
+    
+    Returns:
+    - Conditional precision as a CSC matrix
+    - Symbolic Cholesky factorization of conditional precision as a Cholmod Factor
+    - Numeric "
+    - Conditional mean 
     """
     # Note that the joint precision is
     # [Q + L_obs' Q_obs L_obs      -L_obs' Q_obs]
     # [-Q_obs L_obs                 Q_obs]
     
-    if L_obs:
-        delta = y-L_obs*M-K_obs
-        Qc = Q+(Q_obs*L_obs).__rmul__(L_obs.T)
-        Mc = M+Qc.solve(L_obs.T*Q_obs*delta)
-    else:
-        delta = y-M
-        Qc = Q+Q_obs
-    return Mc,Qc
+    # L_obs defaults to the identity operator
+    if L_obs is None:
+        from scipy.sparse import linalg
+        L_obs = linalg.LinearOperator((len(y),len(x)), id, id)
+        
+    # K_obs defaults to the zero vector.
+    if K_obs is None:
+        K_obs = 0*y
     
-def gibbs(M,Q,L_obs,k_obs,Q_obs,obs_val,symbolic):
-    """
-    Returns a sample for x from the conjugate submodel
+    # Conditional precision.
+    Qc = Q+(Q_obs*L_obs).__rmul__(L_obs.T)
+    
+    # If no symbolic factorization was provided, compute it here.
+    if symbolic is None:
+        symbolic = cholmod.analyze(Qc)
+    
+    # Numeric factorization and conditional mean.
+    delta = y-L_obs*M-K_obs
+    numeric = symbolic.cholesky(Qc)
+    Mc = M + numeric.solve_A(L_obs.T*Q_obs*delta).reshape(M.shape)
 
-    x ~ N(M,Q^{-1})
-    y ~ N(L_obs x + k_obs, Q_obs^{-1})
-
-    where y has been observed to be obs_val. The input argument 'symbolic' should be the symbolic Cholesky factorization returned by gibbs_symbolic
-    """
-    raise NotImplementedError
-
+    return Qc, symbolic, numeric, Mc
+    
 if __name__ == '__main__':
     n = 100
     nobs = 50
@@ -231,22 +251,25 @@ if __name__ == '__main__':
     Cxy = L.T * Cx
     Cy = L.T* Cx * L + Qobs.I
     Ccombo = np.bmat([[Cx,Cxy.T],[Cxy,Cy]])
+
     Qcombo = Ccombo.I
-    
     Qx = Q + L*Qobs*L.T
     Qxy = -L*Qobs
-    Qcombo_ = np.bmat([[Qx,Qxy],[Qxy.T,Qobs]])
+    # Qcombo_ = np.bmat([[Qx,Qxy],[Qxy.T,Qobs]])
     
     # Equivalent.
     Ccond = Cx-Cxy.T*Cy.I*Cxy
-    Ccond_try = Qcombo_[:n,:n].I
+    # Ccond_try = Qcombo_[:n,:n].I
     
     xobs = L.T*M + np.dot(np.linalg.cholesky(Cy), np.random.normal(size=nobs)).reshape((-1,1))
     Mcond = M+Cxy.T*Cy.I*(xobs-L.T*M)
     
-    eta = Qcombo_*np.vstack((M,L.T*M))
-    etacond = eta[:n]-Qxy*xobs
-    Mcond_try = Qx.I*etacond
+    # eta = Qcombo_*np.vstack((M,L.T*M))
+    # etacond = eta[:n]-Qxy*xobs
+    # Mcond_try = Qx.I*etacond
+    # Mcond_try = M+Qx.I*L*Qobs*(xobs-L.T*M)
     
-    print np.abs(Mcond_try-Mcond).max()
+    Qx_try, symbolic, numeric, Mcond_try = conditional_mean_and_precision(xobs, M, *map(sparse.csc_matrix, [Q, Qobs, L.T]))
+    
+    print np.abs(Mcond_try.view(np.ndarray).ravel()-Mcond.view(np.ndarray).ravel()).max()
     
