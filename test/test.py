@@ -70,16 +70,14 @@ lp = 0*S.value
 # TODO: Statistical test comparing Metropolis and Gibbs
 lpf_str = """
 if (dabs(lv(i,1)).GT.0.3) then
-lpp={X}
+lkp={X}
 else
-lpp=-{X}
+lkp=-{X}
 end if
 """
-lp = 0*S.value
-lp[np.where(np.abs(X[:,0])>.3)]=S.value[np.where(X[:,0]>.3)]
 
 gmrfmetro = mcmc.compile_metropolis_sweep(lpf_str)
-S.value,lp = mcmc.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,lp,X,n_sweeps=100)
+S.value,lp = mcmc.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,X,n_sweeps=100)
 
 map_S(S)
 
