@@ -76,10 +76,10 @@ lkp=-{X}
 end if
 """
 
-# gmrfmetro = mcmc.compile_metropolis_sweep(lpf_str)
-# S.value = mcmc.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,X,n_sweeps=100)
+gmrfmetro = mcmc.compile_metropolis_sweep(lpf_str)
+S.value = mcmc.fast_metropolis_sweep(M,Q.value,gmrfmetro,S.value,X,n_sweeps=100)
 
-sm = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,X,n_sweeps=100)
+# sm = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,X,n_sweeps=100)
 
 map_S(S)
 
