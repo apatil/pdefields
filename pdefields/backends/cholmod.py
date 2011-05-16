@@ -201,7 +201,7 @@ def conditional_mean_and_precision(y,M,Q,Q_obs,L_obs=None,K_obs=None,symbolic=No
     - Sparse SPD matrices Q and Qobs
     - Sparse matrix, dense matrix or LinearOperator L_obs (optional)
     - vector K_obs (optional)
-    - Symbolic Cholksy factorization previously returned by conditional_mean_and_precision (optional)
+    - Symbolic Cholesky factorization previously returned by conditional_mean_and_precision (optional)
     
     Returns:
     - Conditional precision as a CSC matrix
