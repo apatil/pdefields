@@ -1,0 +1,1 @@
+This module requires SciPy, NumPy and scikits.sparse. If you're building on a Mac, note my patch at http://groups.google.com/group/scipy-user/browse_thread/thread/b39c656e153dba5d/06943f4c83a0c4ad?lnk=gst&q=Anand+Patil#06943f4c83a0c4ad
