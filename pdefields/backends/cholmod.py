@@ -4,7 +4,7 @@ A linear algebra backend that uses sparse, cholesky-based operations.
 """
 
 # The __all__ list defines the interface every backend must expose.
-__all__ = ['into_matrix_type', 'precision_to_products', 'pattern_to_products', 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx', 'conditional_mean_and_precision_products', 'NonPositiveDefiniteError']
+__all__ = ['into_matrix_type', 'precision_to_products', 'pattern_to_products', 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx', 'conditional_mean_and_precision_products', 'NonPositiveDefiniteError', 'precision_solve_v']
 
 import numpy as np
 import scipy
@@ -54,8 +54,6 @@ def precision_to_products(Q, diag_pert, symbolic):
     - Pbak: The backward permutation vector. x[P][Pbax] = x, and (LDL^T)[Pbak,:][:,Pbak] = Q
     - sqrtD: sqrt(D).
     - """
-    # FIXME: This should be symbolic.cholesky(Q)... but that doesn't work when alpha=2. Why?
-    # F = cholmod.cholesky(Q)
     F = symbolic.cholesky(Q,beta=diag_pert)
     D = F.D()
     sqrtD = np.sqrt(D)
@@ -63,6 +61,13 @@ def precision_to_products(Q, diag_pert, symbolic):
     P = symbolic.P()
     Pbak = np.argsort(P)
     return {'det':det, 'P': P, 'F': F, 'Pbak': Pbak, 'Q': Q, 'sqrtD': sqrtD}
+
+def precision_solve_v(Q,v,diag,symbolic):
+    "(Q+diag)^{-1} v, where Q is CSC and has been analyzed by pattern_to_products and v and diag are vectors."
+    Q_new = Q.copy()
+    Q_new.setdiag(diag)
+    precprod = precision_to_products(Q_new, 0, symbolic)
+    return precprod['F'].solve_A(v), precprod
 
 def rmvn(M,Q,det,F,P,Pbak,sqrtD):
     """

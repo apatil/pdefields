@@ -113,3 +113,31 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10
         gmrf_metro.gmrfmetro(ind, dat, ptr, x_, log_likelihoods, diag, M, acc, norms, likelihood_variables)
 
     return x_ + M
+
+# TODO: Also make an EP version. Should take a Fortran code snippet.
+def approximate_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deriv2,backend):
+    """
+    This function produces an approximate Gaussian full conditional for a multivariate normal variable x with sparse precision Q. This can be used to produce an approximate MCMC scheme or an INLA-like scheme.
+    
+    The algorithm is described in section 2.2 of Rue, Martino and Chopin.
+    
+    Takes:
+    - Mean vector M
+    - Sparse precision matrix Q, in SciPy CSC or CSR format
+    - pattern_products: The backend's precomputations based on sparsity pattern alone.
+    - like_deriv1: A function that takes a value for x and returns an array whose i'th element is the derivative of the likelihood of datapoint i with respect to x[i].
+    - like_deriv2: Same, but the second derivative.
+    - The linear algebra backend that will handle the matrix solves.
+    
+    Returns the approximate full conditional mean of x, the backend's analysis of the full conditional precision Q, and the approximate evidence (the probability of the data conditional on M and Q, not x).
+    """
+    mu = M
+    delta = x+np.inf
+    while np.abs(delta).max() > tol:
+        b = like_deriv1(mu)
+        c = -like_deriv2(mu)
+        mu_next, precision_products = backend.precision_solve_v(Q,b,c,**pattern_products)
+        delta = mu_next - mu
+        mu =  mu_next
+    
+    return mu, precision_products
