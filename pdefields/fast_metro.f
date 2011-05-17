@@ -37,12 +37,12 @@
 !         Propose from the conditional prior, which is often more restrictive than the likelihood for GMRFs.
           xp = norms(i)/dsqrt(diag(i))+mc(i)
           
+         
+          
 !         This is a template parameter that gets substituted for at runtime. It should contain Fortran code that computes the log-likelihood, in terms of {X}, i, lv and lkp. {X} will be replaced with (xp+M(i)), that is the actual proposed value.
           {LIKELIHOOD_CODE}
-          
+
 !         Accept or reject.
-!           print *,i,x(i),xp,lv(i,1),lv(i,2),lk(i),lkp
-!         print *,acc(i),dlog(acc(i)),lkp-lk(i)
           if ((lkp-lk(i)).GT.dlog(acc(i))) then
 !               print *,'accepted'
               lk(i)=lkp

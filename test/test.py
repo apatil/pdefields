@@ -8,7 +8,7 @@ from pdefields.backends import cholmod
 from scipy.special import gamma
 from scipy import sparse
 
-n = 100
+n = 2500
 
 X = spherical.well_spaced_mesh(n)
 
@@ -69,14 +69,14 @@ lp = 0*S.value
 
 
 vals = X[:,0]
-vars = pm.rgamma(4,4,size=n)/10
+vars = pm.rgamma(4,4,size=n)/1000
 
-likelihood_vars = np.vstack((vals,vars)).reshape((-1,2))
+likelihood_vars = np.vstack((vals,vars)).T
 
 # TODO: Statistical test comparing Metropolis and Gibbs
 Qobs = sparse.csc_matrix((n,n))
 
-lpf_str = "lkp = -({X}-lv(i,1))**2/2/lv(i,2)"
+lpf_str = "lkp = -({X}-lv(i,1))**2/2.0D0/lv(i,2)"
 Qobs.setdiag(1./vars)
 
 # lpf_str = "lkp=0"
@@ -100,11 +100,11 @@ def gibbsstep():
     map_S(S)
     pl.title('Gibbs')
     
-devs = []
-for i in xrange(100):
-    metro.step()
-    devs.append(S.value-S.last_value)
-devs = np.array(devs)
+# devs = []
+# for i in xrange(100):
+#     metro.step()
+#     devs.append(S.value-S.last_value)
+# devs = np.array(devs)
 
 metrostep()
 gibbsstep()
