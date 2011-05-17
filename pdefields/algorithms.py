@@ -114,6 +114,9 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10
 
     return x_ + M
 
+def spmatvec(m,v):
+    return (m*v.reshape((-1,1))).view(np.ndarray).ravel()
+
 # TODO: Also make an EP version. Should take a Fortran code snippet.
 def approximate_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deriv2,backend,tol):
     """
@@ -137,7 +140,7 @@ def approximate_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_
         print np.abs(delta).max()
         d1 = like_deriv1(x)
         d2 = like_deriv2(x)
-        delta, precision_products = backend.precision_solve_v(Q,2*d1-(Q*(x-M).reshape((-1,1))).view(np.ndarray).ravel(),-2*d2,**pattern_products)
+        delta, precision_products = backend.precision_solve_v(Q,2*d1-spmatvec(Q,(x-M)),-2*d2,**pattern_products)
         x=x + delta
     
     return x, precision_products
