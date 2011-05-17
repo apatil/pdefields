@@ -74,7 +74,7 @@ def make_model(N,k,X,backend,manifold):
     empirical_S = pm.logit((k+1)/(N+2.))
     S=pymc_objects.SparseMVN('S',M, precision_products, backend, value=empirical_S)
     
-    @pm.deterministic
+    @pm.deterministic(trace=False)
     def p(S=S):
         """The success probability."""
         return pm.invlogit(S)
@@ -112,14 +112,15 @@ if __name__ == '__main__':
     ################################
     # Fit the model.
     ################################
-    M = pm.MCMC(make_model(N,k,X,cholmod,spherical))
+    M = pm.MCMC(make_model(N,k,X,cholmod,spherical),db='hdf5')
     scalar_variables = filter(lambda x:not x.observed, [M.m, M.amp, M.kappa])
     if len(scalar_variables)>0:    
         M.use_step_method(pm.AdaptiveMetropolis, scalar_variables)
     # Comment to use the default AdaptiveMetropolis step method.
     # GMRFMetropolis kind of scales better to high dimensions, but may mix worse in low.
     M.use_step_method(pymc_objects.GMRFMetropolis, M.S, M.likelihood_string, M.M, M.Q, M.likelihood_variables, n_sweeps=100)
-    M.isample(20000,0,100)
+
+    M.isample(1000,0,10)
     
     ################################
     # Visualize the results
@@ -132,13 +133,13 @@ if __name__ == '__main__':
         pm.Matplot.plot(v)
         
     # Make mean and variance maps
-    burn = 100
+    burn = 0
     thin = 1
     resolution = 501
     m1 = np.zeros((resolution/2+1,resolution))
     m2 = np.zeros((resolution/2+1,resolution))
     nmaps = 0
-    for i in xrange(burn, len(M.trace('p')[:]), thin):
+    for i in xrange(burn, M._cur_trace_index, thin):
         M.remember(0,i)
         # Note, this rasterization procedure is not great. It's using SciPy, which is assuming that the data are on the plane. It would be better to either:
         # - Take the finite element representation literally, and evaluate it on the grid
@@ -166,3 +167,50 @@ if __name__ == '__main__':
     pl.imshow(true_p_map[::-1,:], interpolation='nearest',vmin=0,vmax=1)
     pl.colorbar()
     pl.title('True map')
+    
+    # Performance profile, 10 iterations.
+    # n = 250:
+    # ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    #     10    0.049    0.005    0.071    0.007 algorithms.py:77(fast_metropolis_sweep)
+    #   1010    0.015    0.000    0.015    0.000 {method 'normal' of 'mtrand.RandomState' objects}
+    #   1010    0.006    0.000    0.006    0.000 {method 'random_sample' of 'mtrand.RandomState' objects}
+    #     11    0.006    0.001    0.009    0.001 {method 'cholesky' of 'scikits.sparse.cholmod.Factor' objects}
+    #     99    0.003    0.000    0.007    0.000 compressed.py:101(check_format)
+    #     99    0.002    0.000    0.003    0.000 compressed.py:622(prune)
+    #     11    0.002    0.000    0.002    0.000 {_csr.csr_sort_indices}
+    #    753    0.002    0.000    0.002    0.000 {numpy.core.multiarray.array}
+    #     22    0.002    0.000    0.002    0.000 {_csc.csc_matmat_pass2}
+    # n = 2500:
+    # ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    #     10    0.524    0.052    0.702    0.070 algorithms.py:77(fast_metropolis_sweep)
+    #     11    0.216    0.020    0.240    0.022 {method 'cholesky' of 'scikits.sparse.cholmod.Factor' objects}
+    #   1010    0.136    0.000    0.136    0.000 {method 'normal' of 'mtrand.RandomState' objects}
+    #   1010    0.039    0.000    0.039    0.000 {method 'random_sample' of 'mtrand.RandomState' objects}
+    #     22    0.024    0.001    0.024    0.001 {_csc.csc_matmat_pass2}
+    #     11    0.023    0.002    0.023    0.002 {_csr.csr_sort_indices}
+    #     22    0.010    0.000    0.010    0.000 {_csc.csc_matmat_pass1}
+    # n = 10000:
+    #  ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    #      10    1.927    0.193    2.603    0.260 algorithms.py:77(fast_metropolis_sweep)
+    #      10    1.078    0.108    1.163    0.116 {method 'cholesky' of 'scikits.sparse.cholmod.Factor' objects}
+    #    1010    0.524    0.001    0.524    0.001 {method 'normal' of 'mtrand.RandomState' objects}
+    #    1010    0.143    0.000    0.143    0.000 {method 'random_sample' of 'mtrand.RandomState' objects}
+    #      20    0.098    0.005    0.098    0.005 {_csc.csc_matmat_pass2}
+    #      10    0.080    0.008    0.080    0.008 {_csr.csr_sort_indices}
+    #      20    0.044    0.002    0.044    0.002 {_csc.csc_matmat_pass1}
+    # 155/106    0.029    0.000    1.487    0.014 {method 'get' of 'pymc.LazyFunction.LazyFunction' objects}
+    #      30    0.022    0.001    0.022    0.001 {method 'astype' of 'numpy.ndarray' objects}
+    #      10    0.021    0.002    0.021    0.002 {method 'D' of 'scikits.sparse.cholmod.Factor' objects}
+    #      19    0.020    0.001    0.020    0.001 {_csc.csc_matvec}
+    # n = 25000 doesn't work with a RAM db, and also doesn't work with hdf5 because of https://github.com/pymc-devs/pymc/issues/41. However, here are the results from just stepping sequentially.
+    #  ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    #      10    6.133    0.613    7.735    0.774 algorithms.py:77(fast_metropolis_sweep)
+    #      10    4.077    0.408    4.293    0.429 {method 'cholesky' of 'scikits.sparse.cholmod.Factor' objects}
+    #    1010    1.205    0.001    1.205    0.001 {method 'normal' of 'mtrand.RandomState' objects}
+    #    1010    0.366    0.000    0.366    0.000 {method 'random_sample' of 'mtrand.RandomState' objects}
+    #      20    0.247    0.012    0.247    0.012 {_csc.csc_matmat_pass2}
+    #      10    0.200    0.020    0.200    0.020 {_csr.csr_sort_indices}
+    #      20    0.114    0.006    0.114    0.006 {_csc.csc_matmat_pass1}
+    # 148/100    0.083    0.001    5.117    0.051 {method 'get' of 'pymc.LazyFunction.LazyFunction' objects}
+    #      30    0.075    0.003    0.075    0.003 {method 'astype' of 'numpy.ndarray' objects}
+    #      19    0.055    0.003    0.055    0.003 {_csc.csc_matvec}
