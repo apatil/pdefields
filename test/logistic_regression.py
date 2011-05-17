@@ -35,13 +35,13 @@ def make_model(N,k,X,backend,manifold):
     G = backend.into_matrix_type(G)
 
     # Kappa is the scale parameter. It's a free variable.
-    kappa = pm.Exponential('kappa',1,value=3)
+    kappa = pm.Exponential('kappa',1,value=3,observed=True)
 
     # Fix the value of alpha.
     alpha = 2.
 
     # amp is the overall amplitude. It's a free variable that will probably be highly confounded with kappa.
-    amp = pm.Exponential('amp', .0001, value=1)
+    amp = pm.Exponential('amp', .0001, value=100)
 
     # A constant mean.
     m = pm.Uninformative('m',value=0)
@@ -52,9 +52,9 @@ def make_model(N,k,X,backend,manifold):
         return np.ones(n)*m
         
     @pm.deterministic(trace=False)
-    def Q(kappa=kappa, alpha=alpha, Ctilde=Ctilde, G=G, backend=backend):
+    def Q(kappa=kappa, alpha=alpha, amp=amp, Ctilde=Ctilde, G=G, backend=backend):
         "The precision matrix."
-        out = operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backend)
+        out = operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backend)/np.asscalar(amp**2)
         return out
 
     # Do all the precomputation you can based on the sparsity pattern alone.
@@ -71,7 +71,8 @@ def make_model(N,k,X,backend,manifold):
             return None
 
     # The random field.
-    S=pymc_objects.SparseMVN('S',M, precision_products, backend)
+    empirical_S = pm.logit((k+1)/(N+2.))
+    S=pymc_objects.SparseMVN('S',M, precision_products, backend, value=empirical_S)
     
     @pm.deterministic
     def p(S=S):
@@ -112,9 +113,13 @@ if __name__ == '__main__':
     # Fit the model.
     ################################
     M = pm.MCMC(make_model(N,k,X,cholmod,spherical))
-    M.use_step_method(pm.AdaptiveMetropolis, [M.kappa, M.amp, M.m])
-    M.use_step_method(pymc_objects.GMRFMetropolis, M.S, M.likelihood_string, M.M, M.Q, M.likelihood_variables, n_sweeps=100)
-    M.isample(2000,0,10)
+    scalar_variables = filter(lambda x:not x.observed, [M.m, M.amp, M.kappa])
+    if len(scalar_variables)>0:    
+        M.use_step_method(pm.AdaptiveMetropolis, scalar_variables)
+    # Comment to use the default AdaptiveMetropolis step method.
+    # GMRFMetropolis kind of scales better to high dimensions, but may mix worse in low.
+    # M.use_step_method(pymc_objects.GMRFMetropolis, M.S, M.likelihood_string, M.M, M.Q, M.likelihood_variables, n_sweeps=100)
+    M.isample(10000,0,100)
     
     ################################
     # Visualize the results
@@ -123,18 +128,17 @@ if __name__ == '__main__':
     # Traces of the scalar variables.
     import pylab as pl
     pl.close('all')
-    scalar_variables = [M.m, M.amp, M.kappa]
     for v in scalar_variables:
         pm.Matplot.plot(v)
         
     # Make mean and variance maps
-    burn = 100
+    burn = 0
     thin = 1
     resolution = 501
     m1 = np.zeros((resolution/2+1,resolution))
     m2 = np.zeros((resolution/2+1,resolution))
     nmaps = 0
-    for i in xrange(burn, len(M.trace('kappa')[:]), thin):
+    for i in xrange(burn, len(M.trace('p')[:]), thin):
         M.remember(0,i)
         # Note, this rasterization procedure is not great. It's using SciPy, which is assuming that the data are on the plane. It would be better to either:
         # - Take the finite element representation literally, and evaluate it on the grid
@@ -148,17 +152,17 @@ if __name__ == '__main__':
     variance_map = np.ma.masked_array(m2 / nmaps - mean_map**2, mask=gridded_p==np.nan)
     
     pl.figure(len(scalar_variables)+1)
-    pl.imshow(mean_map[::-1,:], interpolation='nearest')
+    pl.imshow(mean_map[::-1,:], interpolation='nearest',vmin=0,vmax=1)
     pl.colorbar()
     pl.title('Mean map')
     
     pl.figure(len(scalar_variables)+2)
-    pl.imshow(variance_map[::-1,:], interpolation='nearest')
+    pl.imshow(variance_map[::-1,:], interpolation='nearest',vmin=0,vmax=1)
     pl.colorbar()
     pl.title('Variance map')
     
     pl.figure(len(scalar_variables)+3)
     true_p_map = spherical.mesh_to_map(X, p_true, resolution)
-    pl.imshow(true_p_map[::-1,:], interpolation='nearest')
+    pl.imshow(true_p_map[::-1,:], interpolation='nearest',vmin=0,vmax=1)
     pl.colorbar()
     pl.title('True map')
