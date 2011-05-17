@@ -1,6 +1,3 @@
-# Triangulation
-
-
 import numpy as np
 import pymc as pm
 from pdefields import pymc_objects, operators, algorithms
@@ -56,56 +53,30 @@ def precision_products(Q=Q, p=pattern_products, diag_pert=diag_pert,normconst=no
 
 S=pymc_objects.SparseMVN('S',M, precision_products, cholmod)
 
+vals = X[:,0]
+vars = pm.rgamma(4,4,size=n)/10
+
+# TODO: Statistical test comparing Metropolis and Gibbs
+Qobs = sparse.csc_matrix((n,n))
+Qobs.setdiag(1./vars)
+
+def first_likelihood_derivative(x, vals=vals, vars=vars):
+    return -(x-vals)/vars
+    
+def second_likelihood_derivative(x, vals=vals, vars=vars):
+    return -1./vars
+    
+C = Q.value.todense()    
+true_conditional_mean = M + (C*(C+Qobs.todense().I).I*np.matrix(vals-M).T).view(np.ndarray).ravel()
+
+M_conditional, precprod_conditional = algorithms.approximate_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
+
 def map_S(S):
     # Make a map
-    rast = spherical.mesh_to_map(X,S.value,501)
+    rast = spherical.mesh_to_map(X,S,501)
     import pylab as pl
     pl.clf()
     pl.imshow(rast,interpolation='nearest')
     pl.colorbar()
-
-S.rand()
-lpf = [lambda x: 0 for i in xrange(n)]
-lp = 0*S.value
-
-
-vals = X[:,0]
-vars = pm.rgamma(4,4,size=n)/1000
-
-likelihood_vars = np.vstack((vals,vars)).T
-
-# TODO: Statistical test comparing Metropolis and Gibbs
-Qobs = sparse.csc_matrix((n,n))
-
-lpf_str = "lkp = -({X}-lv(i,1))**2/2.0D0/lv(i,2)"
-Qobs.setdiag(1./vars)
-
-# lpf_str = "lkp=0"
-# Qobs.setdiag(0*vars+1e-8)
-
-import pylab as pl
-
-S.rand()
-metro = pymc_objects.GMRFMetropolis(S,lpf_str,M,Q,likelihood_vars,n_sweeps=10000)
-gibbs = pymc_objects.GMRFGibbs(cholmod, S, vals, M, Q, Qobs, pattern_products=pattern_products)
-
-def metrostep():
-    metro.step()
-    pl.figure(1)
-    map_S(S)
-    pl.title('Metropolis')
-
-def gibbsstep():
-    gibbs.step()
-    pl.figure(2)
-    map_S(S)
-    pl.title('Gibbs')
     
-# devs = []
-# for i in xrange(100):
-#     metro.step()
-#     devs.append(S.value-S.last_value)
-# devs = np.array(devs)
-
-metrostep()
-gibbsstep()
+map_S(M_conditional)

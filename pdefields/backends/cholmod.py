@@ -65,7 +65,7 @@ def precision_to_products(Q, diag_pert, symbolic):
 def precision_solve_v(Q,v,diag,symbolic):
     "(Q+diag)^{-1} v, where Q is CSC and has been analyzed by pattern_to_products and v and diag are vectors."
     Q_new = Q.copy()
-    Q_new.setdiag(diag)
+    Q_new.setdiag(Q.diagonal()+diag)
     precprod = precision_to_products(Q_new, 0, symbolic)
     return precprod['F'].solve_A(v), precprod
 

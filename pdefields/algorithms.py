@@ -115,7 +115,7 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10
     return x_ + M
 
 # TODO: Also make an EP version. Should take a Fortran code snippet.
-def approximate_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deriv2,backend):
+def approximate_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deriv2,backend,tol):
     """
     This function produces an approximate Gaussian full conditional for a multivariate normal variable x with sparse precision Q. This can be used to produce an approximate MCMC scheme or an INLA-like scheme.
     
@@ -131,13 +131,13 @@ def approximate_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_
     
     Returns the approximate full conditional mean of x, the backend's analysis of the full conditional precision Q, and the approximate evidence (the probability of the data conditional on M and Q, not x).
     """
-    mu = M
-    delta = x+np.inf
+    x = M
+    delta = x*0+np.inf
     while np.abs(delta).max() > tol:
-        b = like_deriv1(mu)
-        c = -like_deriv2(mu)
-        mu_next, precision_products = backend.precision_solve_v(Q,b,c,**pattern_products)
-        delta = mu_next - mu
-        mu =  mu_next
+        print np.abs(delta).max()
+        d1 = like_deriv1(x)
+        d2 = like_deriv2(x)
+        delta, precision_products = backend.precision_solve_v(Q,d1-(Q*(x-M).reshape((-1,1))).view(np.ndarray).ravel(),-2*d2,**pattern_products)
+        x=x + delta
     
-    return mu, precision_products
+    return x, precision_products
