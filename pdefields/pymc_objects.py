@@ -74,7 +74,7 @@ class GMRFGibbs(pm.StepMethod):
         self.x.value = self.backend.rmvn(v[0], **v[1])
 
 class GMRFMetropolis(pm.StepMethod):
-    def __init__(self, x, likelihood_code, M, Q, likelihood_variables, n_sweeps):
+    def __init__(self, x, likelihood_code, M, Q, likelihood_variables, n_sweeps, double_check_likelihood=False):
         """
         Takes the following arguments:
         - x: a SparseMVN instance.
@@ -85,6 +85,7 @@ class GMRFMetropolis(pm.StepMethod):
         - likelihood_variables: All the vertex-specific variables needed to compute the likelihoods.
           Must be a (len(x), _) array or a PyMC variable valued as one.
         - n_sweeps: The number of compiled Metropolis sweeps to do per step.
+        - double_check_likelihood: Whether to double-check that the log-likelihood is finite after making the jump.
         """
 
         self.x = x
@@ -93,6 +94,7 @@ class GMRFMetropolis(pm.StepMethod):
         self.likelihood_variables = likelihood_variables
         self.n_sweeps = n_sweeps
         self.compiled_metropolis_sweep = algorithms.compile_metropolis_sweep(likelihood_code)
+        self.double_check_likelihood = double_check_likelihood
         
         pm.StepMethod.__init__(self, [x])
     
@@ -103,3 +105,10 @@ class GMRFMetropolis(pm.StepMethod):
                                         self.x.value,
                                         pm.utils.value(self.likelihood_variables),
                                         n_sweeps=self.n_sweeps)
+            
+            if self.double_check_likelihood:
+                # Guard against inconsistent jumps.                            
+                try:
+                    self.loglike
+                except pm.ZeroProbability:
+                    self.x.revert()

@@ -35,7 +35,7 @@ def make_model(N,k,X,backend,manifold):
     G = backend.into_matrix_type(G)
 
     # Kappa is the scale parameter. It's a free variable.
-    kappa = pm.Exponential('kappa',1,value=3,observed=True)
+    kappa = pm.Exponential('kappa',1,value=3)
 
     # Fix the value of alpha.
     alpha = 2.
@@ -54,7 +54,7 @@ def make_model(N,k,X,backend,manifold):
     @pm.deterministic(trace=False)
     def Q(kappa=kappa, alpha=alpha, amp=amp, Ctilde=Ctilde, G=G, backend=backend):
         "The precision matrix."
-        out = operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backend)/np.asscalar(amp**2)
+        out = operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backend)/np.asscalar(amp)**2
         return out
 
     # Do all the precomputation you can based on the sparsity pattern alone.
@@ -85,7 +85,7 @@ def make_model(N,k,X,backend,manifold):
     # A Fortran representation of the likelihood, to allow for fast Metropolis steps without querying data.logp.
     likelihood_variables = np.vstack((np.resize(N,k.shape),k)).T
     likelihood_string = """
-    lkp = dexp({X})/dexp(1.0D0+{X})
+    lkp = dexp({X})/(1.0D0+dexp({X}))
     lkp = lv(i,2)*dlog(lkp) + (lv(i,1)-lv(i,2))*dlog(1.0D0-lkp)
     """
     
@@ -118,8 +118,8 @@ if __name__ == '__main__':
         M.use_step_method(pm.AdaptiveMetropolis, scalar_variables)
     # Comment to use the default AdaptiveMetropolis step method.
     # GMRFMetropolis kind of scales better to high dimensions, but may mix worse in low.
-    # M.use_step_method(pymc_objects.GMRFMetropolis, M.S, M.likelihood_string, M.M, M.Q, M.likelihood_variables, n_sweeps=100)
-    M.isample(10000,0,100)
+    M.use_step_method(pymc_objects.GMRFMetropolis, M.S, M.likelihood_string, M.M, M.Q, M.likelihood_variables, n_sweeps=100)
+    M.isample(20000,0,100)
     
     ################################
     # Visualize the results
@@ -132,7 +132,7 @@ if __name__ == '__main__':
         pm.Matplot.plot(v)
         
     # Make mean and variance maps
-    burn = 0
+    burn = 100
     thin = 1
     resolution = 501
     m1 = np.zeros((resolution/2+1,resolution))
