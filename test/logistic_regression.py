@@ -2,8 +2,9 @@
 
 import numpy as np
 import pymc as pm
-from pdefields import spherical, pymc_objects, operators, backends, mcmc
+from pdefields import pymc_objects, operators, algorithms
 from pdefields.backends import cholmod
+from pdefields.manifolds import spherical
 from scipy.special import gamma
 from scipy import sparse
 

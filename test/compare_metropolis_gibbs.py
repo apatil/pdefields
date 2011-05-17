@@ -3,8 +3,9 @@
 
 import numpy as np
 import pymc as pm
-from pdefields import spherical, pymc_objects, operators, backends, mcmc
+from pdefields import pymc_objects, operators, algorithms
 from pdefields.backends import cholmod
+from pdefields.manifolds import spherical
 from scipy.special import gamma
 from scipy import sparse
 
@@ -22,8 +23,8 @@ C = spherical.C(X, triangles, triangle_areas)
 G = spherical.G(X, triangles, triangle_areas)
 
 # Operator generation
-Ctilde = backends.cholmod.into_matrix_type(Ctilde)
-G = backends.cholmod.into_matrix_type(G)
+Ctilde = cholmod.into_matrix_type(Ctilde)
+G = cholmod.into_matrix_type(G)
 M = np.zeros(n)
 
 kappa = pm.Exponential('kappa',1,value=3)
@@ -40,7 +41,7 @@ def normconst(kappa=kappa,alpha=alpha):
 
 @pm.deterministic
 def Q(kappa=kappa, alpha=alpha):
-    out = operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, backends.cholmod)
+    out = operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, cholmod)
     return out
 
 # Nailing this ahead of time reduces time to compute logp from .18 to .13s for n=25000.
