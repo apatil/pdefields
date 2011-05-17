@@ -45,10 +45,8 @@ def compile_metropolis_sweep(fortran_likelihood_code):
     - lkp: The log-likelihood at that vertex for value xp.
     The code should assign to lkp. A non-optimized logistic regression example:
     
-    lX = dexp({X})/dexp(1+{X})
-    n = lv(i,1)
-    k = lv(i,2)
-    lkp = n*dlog(lX) + k*dlog(1-lX)
+    lkp = dexp({X})/dexp(1.0D0+{X})
+    lkp = lv(i,2)*dlog(lkp) + (lv(i,1)-lv(i,2))*dlog(1.0D0-lkp)
     
     Returns a function for use by fast_metropolis_sweep. The generated code is included in the return object as the 'code' attribute.
     """

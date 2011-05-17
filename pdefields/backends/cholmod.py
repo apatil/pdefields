@@ -4,7 +4,7 @@ A linear algebra backend that uses sparse, cholesky-based operations.
 """
 
 # The __all__ list defines the interface every backend must expose.
-__all__ = ['into_matrix_type', 'precision_to_products', 'pattern_to_products', 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx', 'conditional_mean_and_precision_products']
+__all__ = ['into_matrix_type', 'precision_to_products', 'pattern_to_products', 'rmvn', 'mvn_logp', 'axpy', 'dm_solve_m', 'm_mul_m', 'm_xtyx', 'conditional_mean_and_precision_products', 'NonPositiveDefiniteError']
 
 import numpy as np
 import scipy
@@ -13,13 +13,15 @@ import scikits.sparse.cholmod as cholmod
 
 precision_product_keys = ['L','P','F']
 
+NonPositiveDefiniteError = cholmod.CholmodError
+
 def into_matrix_type(m):
     "Takes a matrix m and returns a representation of it as a SciPy compressed sparse column matrix. This is the matrix format used by the CHOLMOD wrapper in scikits.sparse."
     return sparse.csc.csc_matrix(m)
     
 def axpy(a,x,y):
     "a,x,y -> ax+y"
-    return a*x + y
+    return np.asscalar(a)*x + y
 
 def dm_solve_m(x,y):
     "A^{-1} B, where A is diagonal and B is CSC."

@@ -9,7 +9,10 @@ from scipy import sparse
 
 def mvn_logp(x,M,precision_products,backend):
     "Takes a candidate value x, a mean vector M, the products returned by backend.precision_products as a map, and the linear algebra backend module. Passes the arguments to backend.mvn_logp and returns the log-probability of x given M and the precision matrix represented in precision_products."
-    return backend.mvn_logp(x,M,**precision_products)
+    if precision_products is None:
+        return -np.inf
+    else:
+        return backend.mvn_logp(x,M,**precision_products)
     
 def rmvn(M,precision_products,backend):
     "Takes a mean vector M, the products returned by backend.precision_products as a map, and the linear algebra backend module. Passes the arguments to backend.rmvn and returns a random draw x from the multivariate normal variable with mean M and the precision matrix represented in precision_products."

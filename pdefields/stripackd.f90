@@ -1,3 +1,6 @@
+! This is stripackd by Robert Renka.
+! See http://orion.math.iastate.edu/burkardt/f_src/stripack/stripackd.f90.
+
 subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !
 !*******************************************************************************
