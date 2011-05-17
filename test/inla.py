@@ -70,13 +70,14 @@ C = Q.value.todense()
 true_conditional_mean = M + (C*(C+Qobs.todense().I).I*np.matrix(vals-M).T).view(np.ndarray).ravel()
 
 M_conditional, precprod_conditional = algorithms.approximate_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
+import pylab as pl
+pl.clf()
+pl.subplot(2,1,1)
+rast = spherical.mesh_to_map(X,M_conditional,501)
+pl.imshow(rast,interpolation='nearest')
+pl.colorbar()
 
-def map_S(S):
-    # Make a map
-    rast = spherical.mesh_to_map(X,S,501)
-    import pylab as pl
-    pl.clf()
-    pl.imshow(rast,interpolation='nearest')
-    pl.colorbar()
-    
-map_S(M_conditional)
+pl.subplot(2,1,2)
+rast = spherical.mesh_to_map(X,true_conditional_mean,501)
+pl.imshow(rast,interpolation='nearest')
+pl.colorbar()
