@@ -118,7 +118,7 @@ if __name__ == '__main__':
         M.use_step_method(pm.AdaptiveMetropolis, scalar_variables)
     # Comment to use the default AdaptiveMetropolis step method.
     # GMRFMetropolis kind of scales better to high dimensions, but may mix worse in low.
-    M.use_step_method(pymc_objects.GMRFMetropolis, M.S, M.likelihood_string, M.M, M.Q, M.likelihood_variables, n_sweeps=100)
+    # M.use_step_method(pymc_objects.GMRFMetropolis, M.S, M.likelihood_string, M.M, M.Q, M.likelihood_variables, n_sweeps=100)
     M.isample(10000,0,100)
     
     ################################
