@@ -118,11 +118,11 @@ def spmatvec(m,v):
     return (m*v.reshape((-1,1))).view(np.ndarray).ravel()
 
 # TODO: Also make an EP version. Should take a Fortran code snippet.
-def approximate_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deriv2,backend,tol):
+def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deriv2,backend,tol):
     """
     This function produces an approximate Gaussian full conditional for a multivariate normal variable x with sparse precision Q. This can be used to produce an approximate MCMC scheme or an INLA-like scheme.
     
-    The algorithm is described in section 2.2 of Rue, Martino and Chopin.
+    The scoring algorithm is described in section 2.2 of Rue, Martino and Chopin.
     
     Takes:
     - Mean vector M
@@ -137,10 +137,12 @@ def approximate_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_
     x = M
     delta = x*0+np.inf
     while np.abs(delta).max() > tol:
-        print np.abs(delta).max()
+        # print np.abs(delta).max()
         d1 = like_deriv1(x)
         d2 = like_deriv2(x)
-        delta, precision_products = backend.precision_solve_v(Q,2*d1-spmatvec(Q,(x-M)),-2*d2,**pattern_products)
-        x=x + delta
+        grad2 = d1-spmatvec(Q,(x-M))
+        delta, precision_products = backend.precision_solve_v(Q,d1-spmatvec(Q,(x-M)),-d2,**pattern_products)
+        
+        x = x + delta
     
     return x, precision_products

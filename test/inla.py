@@ -65,19 +65,13 @@ def first_likelihood_derivative(x, vals=vals, vars=vars):
     
 def second_likelihood_derivative(x, vals=vals, vars=vars):
     return -1./vars
-    
-C = Q.value.todense()    
-true_conditional_mean = M + (C*(C+Qobs.todense().I).I*np.matrix(vals-M).T).view(np.ndarray).ravel()
 
-M_conditional, precprod_conditional = algorithms.approximate_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
-import pylab as pl
-pl.clf()
-pl.subplot(2,1,1)
-rast = spherical.mesh_to_map(X,M_conditional,501)
-pl.imshow(rast,interpolation='nearest')
-pl.colorbar()
+true_conditional_mean, cpp = cholmod.conditional_mean_and_precision_products(vals,M,Q.value+Qobs,Qobs,**pattern_products)
 
-pl.subplot(2,1,2)
-rast = spherical.mesh_to_map(X,true_conditional_mean,501)
-pl.imshow(rast,interpolation='nearest')
-pl.colorbar()
+M_conditional, precprod_conditional = algorithms.scoring_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
+
+# These should be zero
+print np.abs(true_conditional_mean - M_conditional).max()
+print np.abs(1./(precprod_conditional['Q']-Q.value).diagonal()-vars).max()
+# But this is zero
+# print np.abs(1./(precprod_conditional['Q']-Q.value).diagonal()*2-vars).max()
