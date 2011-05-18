@@ -62,8 +62,6 @@ def compile_fortran_routine(fortran_likelihood_code, modname, template):
     exec('%s.code = fortran_code'%modname)
     exec('mod = %s'%modname)
     return mod
-    
-    
 
 def compile_metropolis_sweep(fortran_likelihood_code):
     """
@@ -81,8 +79,13 @@ def compile_metropolis_sweep(fortran_likelihood_code):
     """
     template = file(os.path.join(os.path.split(pdefields.__file__)[0],'fast_metro.f')).read()
     return compile_fortran_routine(fortran_likelihood_code, 'gmrf_metro', template)
+    
+def compile_likelihood_evaluation(fortran_likelihood_code):
+    template = file(os.path.join(os.path.split(pdefields.__file__)[0],'likelihood_eval.f')).read()
+    return compile_fortran_routine(fortran_likelihood_code, 'likelihood', template)
+    
 
-def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10):
+def fast_metropolis_sweep(M,Q,gmrf_metro,fortran_likelihood,x,likelihood_variables=None,n_sweeps=10):
     """
     Takes:
     - Mean vector M
@@ -111,7 +114,7 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10
     likelihood_variables = np.asarray(likelihood_variables, order='F')
 
     # Initialize the likelihoods
-    log_likelihoods = gmrf_metro.lkinit(x_,M,likelihood_variables)
+    log_likelihoods = fortran_likelihood.lkinit(x_,M,likelihood_variables)
 
     # Call the Fortran code, add the mean back on and return.
     for i in xrange(n_sweeps): 
@@ -125,6 +128,7 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,x,likelihood_variables=None,n_sweeps=10
 def spmatvec(m,v):
     return (m*v.reshape((-1,1))).view(np.ndarray).ravel()
 
+# TODO: Evidence
 def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deriv2,backend,tol):
     """
     This function produces an approximate Gaussian full conditional for a multivariate normal variable x with sparse precision Q. This can be used to produce an approximate MCMC scheme or an INLA-like scheme.
@@ -154,31 +158,23 @@ def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deri
     
     return x, precision_products
     
-def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol):
+def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,n_bins=100):
     """
-    This function produces an approximate Gaussian full conditional for a multivariate normal variable x with sparse precision Q. This can be used to produce an approximate MCMC scheme or an INLA-like scheme.
-
-    The scoring algorithm is described in section 2.2 of Rue, Martino and Chopin.
-
-    Takes:
-    - Mean vector M
-    - Sparse precision matrix Q, in SciPy CSC or CSR format
-    - pattern_products: The backend's precomputations based on sparsity pattern alone.
-    - like_deriv1: A function that takes a value for x and returns an array whose i'th element is the derivative of the likelihood of datapoint i with respect to x[i].
-    - like_deriv2: Same, but the second derivative.
-    - The linear algebra backend that will handle the matrix solves.
-
-    Returns the approximate full conditional mean of x, the backend's analysis of the full conditional precision Q, and the approximate evidence (the probability of the data conditional on M and Q, not x).
+    Blah
     """
+    from scipy import stats
+    binwidth = 1./n_bins
+    quantiles = np.linspace(binwidth/2., 1.-binwidth/2., n_bins)
+    # Prepare gridpoints for numerical integration.
+    int_pts = scipy.stats.distributions.norm.ppf(quantiles)
+    int_vals = scipy.stats.distributions.norm.pdf(int_pts)
+
     x = M
+    nx = len(x)
     delta = x*0+np.inf
     while np.abs(delta).max() > tol:
-        # print np.abs(delta).max()
-        d1 = like_deriv1(x)
-        d2 = like_deriv2(x)
-        grad2 = d1-spmatvec(Q,(x-M))
-        delta, precision_products = backend.precision_solve_v(Q,d1-spmatvec(Q,(x-M)),-d2,**pattern_products)
-
-        x = x + delta
-
-    return x, precision_products
+        for i in xrange(nx):
+            mc[i] = (Q[i,i]*x[i]-spmatvec(Q[:,i].T,x))/Q[i,i]
+            
+        
+    # return x, precision_products

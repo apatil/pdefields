@@ -66,12 +66,13 @@ def first_likelihood_derivative(x, vals=vals, vars=vars):
 def second_likelihood_derivative(x, vals=vals, vars=vars):
     return -1./vars
 
-true_conditional_mean, cpp = cholmod.conditional_mean_and_precision_products(vals,M,Q.value+Qobs,Qobs,**pattern_products)
+lpf_str = "lkp = -({X}-lv(i,1))**2/2.0D0/lv(i,2)"
 
-M_conditional, precprod_conditional = algorithms.scoring_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
+# true_conditional_mean, cpp = cholmod.conditional_mean_and_precision_products(vals,M,Q.value+Qobs,Qobs,**pattern_products)
+# M_conditional, precprod_conditional = algorithms.scoring_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
+
+prod = algorithms.EP_gaussian_full_conditional(M,Q.value,lpf_str,1.e-8,n_bins=100)
 
 # These should be zero
-print np.abs(true_conditional_mean - M_conditional).max()
-print np.abs(1./(precprod_conditional['Q']-Q.value).diagonal()-vars).max()
-# But this is zero
-# print np.abs(1./(precprod_conditional['Q']-Q.value).diagonal()*2-vars).max()
+# print np.abs(true_conditional_mean - M_conditional).max()
+# print np.abs(1./(precprod_conditional['Q']-Q.value).diagonal()-vars).max()

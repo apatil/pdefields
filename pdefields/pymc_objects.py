@@ -93,6 +93,7 @@ class GMRFMetropolis(pm.StepMethod):
         self.Q = Q
         self.likelihood_variables = likelihood_variables
         self.n_sweeps = n_sweeps
+        self.compiled_likelihood_evaluation = algorithms.compile_likelihood_evaluation(likelihood_code)
         self.compiled_metropolis_sweep = algorithms.compile_metropolis_sweep(likelihood_code)
         self.double_check_likelihood = double_check_likelihood
         
@@ -102,6 +103,7 @@ class GMRFMetropolis(pm.StepMethod):
             self.x.value = algorithms.fast_metropolis_sweep(pm.utils.value(self.M),
                                         pm.utils.value(self.Q),
                                         self.compiled_metropolis_sweep,
+                                        self.compiled_likelihood_evaluation,
                                         self.x.value,
                                         pm.utils.value(self.likelihood_variables),
                                         n_sweeps=self.n_sweeps)
