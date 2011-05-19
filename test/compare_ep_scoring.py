@@ -26,15 +26,6 @@ M = np.random.normal(size=n)
 
 kappa = pm.Exponential('kappa',1,value=3)
 alpha = pm.DiscreteUniform('alpha',1,10,value=2.)
-diag_pert = pm.Exponential('diag_pert',1,value=0.)
-
-@pm.deterministic
-def normconst(kappa=kappa,alpha=alpha):
-    """normconst = function(parents)"""
-    d = 2.
-    nu = alpha - d/2
-    normconst = gamma(nu)/(gamma(nu+d/2)*(4.*np.pi)**(d/2)*kappa**(2*nu))
-    return normconst
 
 @pm.deterministic
 def Q(kappa=kappa, alpha=alpha):
@@ -48,8 +39,8 @@ pattern_products = cholmod.pattern_to_products(Q.value)
 #     return cholmod.pattern_to_products(Q)
 
 @pm.deterministic
-def precision_products(Q=Q, p=pattern_products, diag_pert=diag_pert,normconst=normconst):
-    return cholmod.precision_to_products(Q, diag_pert=diag_pert*normconst, **p)
+def precision_products(Q=Q, p=pattern_products):
+    return cholmod.precision_to_products(Q, **p)
 
 S=pymc_objects.SparseMVN('S',M, precision_products, cholmod)
 
@@ -81,11 +72,18 @@ likelihood_vars = np.vstack((vals,vars)).T
 
 # true_conditional_mean, cpp = cholmod.conditional_mean_and_precision_products(vals,M,Q.value+Qobs,Qobs,**pattern_products)
 prod_scoring = algorithms.scoring_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
-prod_ep = algorithms.EP_gaussian_full_conditional(M,Q.value,lpf_str,1.e-5,cholmod,pattern_products,likelihood_vars,n_bins=100)
-
 
 # These should be small
-print 'Observation values',vecdiff(vals,prod_scoring[0]),vecdiff(vals,prod_ep[0])
-print 'Observation variances',vecdiff(vars,prod_scoring[1]),vecdiff(vars,prod_ep[1])
-print 'Conditional means',vecdiff(true_mcond, prod_scoring[2]),vecdiff(true_mcond,prod_ep[2])
-print 'Conditional precisions',vecdiff((Q.value+Qobs).todense(),prod_scoring[3]['Q'].todense())/Qobs.diagonal().max(),vecdiff((Q.value+Qobs).todense(),prod_ep[3]['Q'].todense())/Qobs.diagonal().max()
+print 'Observation values',vecdiff(vals,prod_scoring[0])
+print 'Observation variances',vecdiff(vars,prod_scoring[1])
+print 'Conditional means',vecdiff(true_mcond, prod_scoring[2])
+print 'Conditional precisions',vecdiff((Q.value+Qobs).todense(),prod_scoring[3]['Q'].todense())
+
+# prod_ep = algorithms.EP_gaussian_full_conditional(M,Q.value,lpf_str,1.e-5,cholmod,pattern_products,likelihood_vars,n_bins=100)
+# 
+# 
+# # These should be small
+# print 'Observation values',vecdiff(vals,prod_scoring[0]),vecdiff(vals,prod_ep[0])
+# print 'Observation variances',vecdiff(vars,prod_scoring[1]),vecdiff(vars,prod_ep[1])
+# print 'Conditional means',vecdiff(true_mcond, prod_scoring[2]),vecdiff(true_mcond,prod_ep[2])
+# print 'Conditional precisions',vecdiff((Q.value+Qobs).todense(),prod_scoring[3]['Q'].todense())/Qobs.diagonal().max(),vecdiff((Q.value+Qobs).todense(),prod_ep[3]['Q'].todense())/Qobs.diagonal().max()
