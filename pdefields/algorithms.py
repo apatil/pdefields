@@ -167,14 +167,18 @@ def log_simpson(ly,dx):
     ly_[1:-1:2] += log4
     ly_[2:-2:2] += log2
     return pm.flib.logsum(ly_)+np.log(dx)-log3
+
+def with_delta(x,new_x,delta):
+    delta = max(delta, np.abs(x-new_x))
+    return new_x, delta
     
-def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_variables=None,n_bins=100):
+def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_variables=None,n_bins=100,sd_width=10):
     """
     Blah
     """
     from scipy import stats
     # Prepare gridpoints for numerical integration.
-    int_pts = np.linspace(-5,5, n_bins)
+    int_pts = np.linspace(-sd_width/2.,sd_width/2., n_bins)
     dint_pts = int_pts[1]-int_pts[0]
     diag = Q.diagonal()
     prior_sds = 1./np.sqrt(diag)
@@ -189,10 +193,11 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_vari
     x = M*0
     mc = 0*x
     nx = len(x)
-    delta = x+np.inf
+    delta = np.inf
     effective_obsvals = 0*x
     effective_obsvars = 0*x
-    while np.abs(delta).max() > tol:
+    while delta > tol:
+        delta = 0
         for i in xrange(nx):
             mc[i] = (diag[i]*x[i]-spmatvec(Q[:,i].T,x))/diag[i]
             
@@ -200,12 +205,15 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_vari
             x_for_integral = int_pts*prior_sds[i] + mc[i]
             dx = dint_pts * prior_sds[i]
             
+            # Evaluate likelihood over x-axis of integral.
             likes = np.array([like_eval.lkinit(np.atleast_1d(xi), np.atleast_1d(M[i]), np.atleast_2d(likelihood_variables[i,:])) for xi in x_for_integral]).ravel()
-
+            # Posterior \propto prior * likelihood.
             posteriors = -(x_for_integral-mc[i])**2/2*diag[i] + likes
-            
+            # This is going to be exponentiated and the normalizing constant isn't known anyway, so make the numbers
+            # reasonable sized to avoid numerical problems.
             posteriors -= posteriors.max()
             
+            # Normalizing constant.
             norm = integrate.simps(np.exp(posteriors),None, dx)
 
             # Full conditional mean
@@ -216,12 +224,7 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_vari
             v = m2-m**2
             
             # Back out the 'observation' value and measurement variance
-            effective_obsvars[i] = 1/(1/v-diag[i])
-            effective_obsvals[i] = effective_obsvars[i]*(m/v-mc[i]*diag[i])
-            
-            print 'mean', effective_obsvals[i], likelihood_variables[i,0]
-            print 'variance', effective_obsvars[i], likelihood_variables[i,1]
-            
-        delta.fill(0)
+            effective_obsvars[i], delta = with_delta(effective_obsvars[i], 1/(1/v-diag[i]), delta)
+            effective_obsvals[i], delta = with_delta(effective_obsvals[i], effective_obsvars[i]*(m/v-mc[i]*diag[i]), delta)
         
-    # return x, precision_products
+    return effective_obsvals, effective_obsvars
