@@ -10,6 +10,7 @@ import os
 import numpy as np
 import scipy
 from scipy import sparse
+import pymc as pm
 
 # Conditional precision.
 def conditional_precision(Q,Q_obs,L_obs):
@@ -157,24 +158,61 @@ def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deri
         x = x + delta
     
     return x, precision_products
+log4 = np.log(4)
+log3 = np.log(3)
+log2 = np.log(2)
+def log_simpson(ly,dx):
+    # dx/3 (y0 + 4y1 + 2y2 +... + 2yn-2 + 4yn-1 + yn)
+    ly_ = ly.copy()
+    ly_[1:-1:2] += log4
+    ly_[2:-2:2] += log2
+    return pm.flib.logsum(ly_)+np.log(dx)-log3
     
-def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,n_bins=100):
+def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_variables=None,n_bins=100):
     """
     Blah
     """
     from scipy import stats
-    binwidth = 1./n_bins
-    quantiles = np.linspace(binwidth/2., 1.-binwidth/2., n_bins)
     # Prepare gridpoints for numerical integration.
-    int_pts = scipy.stats.distributions.norm.ppf(quantiles)
-    int_vals = scipy.stats.distributions.norm.pdf(int_pts)
+    int_pts = np.linspace(-5,5, n_bins)
+    dint_pts = int_pts[1]-int_pts[0]
+    diag = Q.diagonal()
+    prior_sds = 1./np.sqrt(diag)
+    
+    from scipy import integrate
+    
+    like_eval = compile_likelihood_evaluation(fortran_likelihood_code)
+    if likelihood_variables is None:
+        likelihood_variables = np.zeros(len(x))
+    likelihood_variables = np.asarray(likelihood_variables, order='F')
 
-    x = M
+    x = M*0
+    mc = 0*x
     nx = len(x)
-    delta = x*0+np.inf
+    delta = x+np.inf
+    like_means = 0*x
+    like_vars = 0*x
     while np.abs(delta).max() > tol:
         for i in xrange(nx):
-            mc[i] = (Q[i,i]*x[i]-spmatvec(Q[:,i].T,x))/Q[i,i]
+            mc[i] = (diag[i]*x[i]-spmatvec(Q[:,i].T,x))/diag[i]
             
+            
+            x_for_integral = int_pts*prior_sds[i] + mc[i]
+            dx = dint_pts * prior_sds[i]
+            
+            likes = np.array([like_eval.lkinit(np.atleast_1d(xi), np.atleast_1d(M[i]), np.atleast_2d(likelihood_variables[i,:])) for xi in x_for_integral]).ravel()
+
+            posteriors = -(x_for_integral-mc[i])**2/2*diag[i] + likes
+            
+            posteriors -= posteriors.max()
+            
+            norm = integrate.simps(np.exp(posteriors),None, dx)
+            
+            m = integrate.simps(np.exp(posteriors)*x_for_integral,None, dx)/norm
+            m2 = integrate.simps(np.exp(posteriors)*x_for_integral**2,None, dx)/norm
+            
+            v = m2-m**2
+            
+        delta.fill(0)
         
     # return x, precision_products
