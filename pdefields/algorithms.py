@@ -190,8 +190,8 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_vari
     mc = 0*x
     nx = len(x)
     delta = x+np.inf
-    like_means = 0*x
-    like_vars = 0*x
+    effective_obsvals = 0*x
+    effective_obsvars = 0*x
     while np.abs(delta).max() > tol:
         for i in xrange(nx):
             mc[i] = (diag[i]*x[i]-spmatvec(Q[:,i].T,x))/diag[i]
@@ -215,16 +215,12 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_vari
             # Full conditional variance
             v = m2-m**2
             
-            # (m1/v1 + m2/v2)/(1/v1 + 1/v2) = m_cond
-            # (1/v1+1/v2) = 1/vcond
-            # v2 = 1/(1/vcond-1/v1)
-            # m2 = v2*(m_cond*(1/v1+1/v2)-m1/v1) = v2*(mcond/vcond-m1/v1)
             # Back out the 'observation' value and measurement variance
-            like_vars[i] = 1/(1/v-diag[i])
-            like_means[i] = like_vars[i]*(m/v-mc[i]*diag[i])
+            effective_obsvars[i] = 1/(1/v-diag[i])
+            effective_obsvals[i] = effective_obsvars[i]*(m/v-mc[i]*diag[i])
             
-            print 'mean', like_means[i], likelihood_variables[i,0]
-            print 'variance', like_vars[i], likelihood_variables[i,1]
+            print 'mean', effective_obsvals[i], likelihood_variables[i,0]
+            print 'variance', effective_obsvars[i], likelihood_variables[i,1]
             
         delta.fill(0)
         
