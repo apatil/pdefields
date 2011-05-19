@@ -47,7 +47,10 @@ def make_model(X):
 
     @pm.deterministic(trace=False)
     def precision_products(Q=Q, p=pattern_products):
-        return cholmod.precision_to_products(Q, **p)
+        try:
+            return cholmod.precision_to_products(Q, **p)
+        except cholmod.NonPositiveDefiniteError:
+            return None
 
     S=pymc_objects.SparseMVN('S',M, precision_products, cholmod)
 
@@ -82,5 +85,5 @@ if __name__ == '__main__':
     M = pm.MCMC(make_model(X))
     M.use_step_method(INLAParentAdaptiveMetropolis, [M.kappa, M.m, M.amp, M.S], M.first_likelihood_derivative, M.second_likelihood_derivative, 1e-5, M.pattern_products)
     sm = M.step_method_dict[M.S][0]
-    M.isample(1000,0,10)
-    [pm.Matplot.plot(s) for s in [M.amp, M.kappa, M.amp]]
+    M.isample(10000,0,100)
+    [pm.Matplot.plot(s) for s in [M.m, M.kappa, M.amp]]

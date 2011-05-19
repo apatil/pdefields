@@ -125,15 +125,16 @@ def approximate_evidence(gmrf, Mc, ppc):
 def wrap_metropolis_for_INLA(metro_class):
     """
     Wraps Metropolis step methods so they can handle extended parents of
-    Gaussian processes.
+    GMRF's using the INLA approximation to the evidence.
     """
     class wrapper(metro_class):
-        def __init__(self, stochastic, likelihood_deriv1, likelihood_deriv2, tol, pattern_products, *args, **kwds):
+        def __init__(self, stochastic, likelihood_deriv1, likelihood_deriv2, tol, pattern_products, update_gmrf=False, *args, **kwds):
             
             self.likelihood_deriv1 = likelihood_deriv1
             self.likelihood_deriv2 = likelihood_deriv2
             self.tol = tol
             self.pattern_products = pattern_products
+            self.update_gmrf = update_gmrf
             self.metro_class.__init__(self, stochastic, *args, **kwds)
             gmrfs = []
             
@@ -149,24 +150,38 @@ def wrap_metropolis_for_INLA(metro_class):
             
             @pm.deterministic
             def approx_conditional(M = self.gmrf.parents['M'], precprod = self.gmrf.parents['precision_products'], tol=self.tol, backend=self.gmrf.parents['backend'], patprod=self.pattern_products, d1=self.likelihood_deriv1, d2=self.likelihood_deriv2):
-                vals, vars, Mc, ppc = algorithms.scoring_gaussian_full_conditional(M,precprod['Q'],patprod,d1,d2,backend,tol)
-                return Mc, ppc
+                if precprod is None:
+                    return None
+                else:
+                    try:
+                        vals, vars, Mc, ppc = algorithms.scoring_gaussian_full_conditional(M,precprod['Q'],patprod,d1,d2,backend,tol)
+                        return Mc, ppc
+                    except self.gmrf.parents['backend'].NonPositiveDefiniteError:
+                        return None
+            
+            @pm.deterministic
+            def evidence(ac = approx_conditional):
+                # Note, it is not a mistake that gmrf does not appear in the parents list.
+                "Approximates log p(self.gmrf.extended_children | self.stochastics) p(self.stochastics)"
+                if ac is not None:
+                    return approximate_evidence(self.gmrf, *ac)
+                else:
+                    return -np.inf
+            
             self.approx_conditional = approx_conditional
+            self.evidence = evidence
         
-        def get_evidence(self):
-            # Approximates log p(self.gmrf.extended_children | self.stochastics) p(self.stochastics)
-            return approximate_evidence(self.gmrf, *self.approx_conditional.value)
-        evidence = property(get_evidence)    
             
         def get_logp_plus_loglike(self):
-            return pm.logp_of_set(self.mb_for_logp) + self.get_evidence()
+            return pm.logp_of_set(self.mb_for_logp) + self.evidence.value
         logp_plus_loglike = property(get_logp_plus_loglike)
     
         def step(self):
             self.metro_class.step(self)
             # Then draws a value for the gmrf from its approximate conditional posterior.
-            Mc, ppc = self.approx_conditional.value
-            self.gmrf.value = self.gmrf.parents['backend'].rmvn(Mc, **ppc)
+            if self.update_gmrf:
+                Mc, ppc = self.approx_conditional.value
+                self.gmrf.value = self.gmrf.parents['backend'].rmvn(Mc, **ppc)
                     
         @staticmethod
         def competence(stochastic, metro_class=metro_class):
@@ -180,6 +195,7 @@ The extra arguments required may be flat values or PyMC variables:
     - likelihood_deriv1 and likelihood_deriv2: functions returning the first two derivatives of the likelihood given the GMRF's value.
     - tol: Tolerance for the scoring method.
     - pattern_products: Whatever the backend can precompute given only the sparsity pattern of the precision matrix.
+    - update_gmrf: Whether to draw a value for the GMRF from its approximate full conditional at every iteration.
     
     
 Docstring of class %s: \n\n%s"""%(metro_class.__name__,metro_class.__name__,metro_class.__doc__)
