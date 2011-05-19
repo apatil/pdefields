@@ -114,7 +114,14 @@ class GMRFMetropolis(pm.StepMethod):
                     self.loglike
                 except pm.ZeroProbability:
                     self.x.revert()
-                    
+
+def approximate_evidence(gmrf, Mc, ppc):
+    "The INLA approximation \pi(y|\theta)"
+    pygx = pm.logp_of_set(gmrf.extended_children)
+    px = gmrf.logp
+    pxgy = gmrf.parents['backend'].mvn_logp(gmrf.value, Mc, **ppc)
+    return pygx + px - pxgy
+          
 def wrap_metropolis_for_INLA(metro_class):
     """
     Wraps Metropolis step methods so they can handle extended parents of
@@ -130,11 +137,11 @@ def wrap_metropolis_for_INLA(metro_class):
             self.metro_class.__init__(self, stochastic, *args, **kwds)
             gmrfs = []
             
-            for c in list(self.children):
+            for c in self.stochastics:
                 if isinstance(c, SparseMVN):
                     gmrfs.append(c)
-            if len(gmrfs)>1:
-                raise NotImplementedError, 'Only one GMRF allowed so far. Why not combine them?'
+            if len(gmrfs)!=1:
+                raise NotImplementedError, 'One and only one GMRF allowed so far. Why not combine them?'
             
             self.mb_for_logp = set(self.markov_blanket) - set(gmrfs) - set(gmrfs[0].extended_children)
             
@@ -148,11 +155,7 @@ def wrap_metropolis_for_INLA(metro_class):
         
         def get_evidence(self):
             # Approximates log p(self.gmrf.extended_children | self.stochastics) p(self.stochastics)
-            pygx = pm.logp_of_set(self.gmrf.extended_children)
-            px = self.gmrf.logp
-            Mc, ppc = self.approx_conditional.value
-            pxgy = self.gmrf.parents['backend'].mvn_logp(self.gmrf.value, Mc, **ppc)
-            return pygx + px - pxgy
+            return approximate_evidence(self.gmrf, *self.approx_conditional.value)
         evidence = property(get_evidence)    
             
         def get_logp_plus_loglike(self):

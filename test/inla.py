@@ -19,15 +19,24 @@ def make_model(X):
     # Operator generation
     Ctilde = cholmod.into_matrix_type(Ctilde)
     G = cholmod.into_matrix_type(G)
-    M = np.random.normal(size=n)
+    
+    # amp is the overall amplitude. It's a free variable that will probably be highly confounded with kappa.
+    amp = pm.Exponential('amp', .0001, value=100)
+
+    # A constant mean.
+    m = pm.Uninformative('m',value=0)
+    
+    @pm.deterministic(trace=False)
+    def M(m=m,n=len(X)):
+        """The mean vector"""
+        return np.ones(n)*m
 
     kappa = pm.Exponential('kappa',1,value=3)
-    alpha = pm.DiscreteUniform('alpha',1,10,value=2.)
-    diag_pert = pm.Exponential('diag_pert',1,value=0.)
+    alpha = pm.DiscreteUniform('alpha',1,10,value=2., observed=True)
 
-    @pm.deterministic
-    def Q(kappa=kappa, alpha=alpha):
-        out = operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, cholmod)
+    @pm.deterministic(trace=False)
+    def Q(kappa=kappa, alpha=alpha, amp=amp):
+        out = operators.mod_frac_laplacian_precision(Ctilde, G, kappa, alpha, cholmod)/np.asscalar(amp)**2
         return out
 
     # Nailing this ahead of time reduces time to compute logp from .18 to .13s for n=25000.
@@ -36,9 +45,9 @@ def make_model(X):
     # def pattern_products(Q=Q):
     #     return cholmod.pattern_to_products(Q)
 
-    @pm.deterministic
-    def precision_products(Q=Q, p=pattern_products, diag_pert=diag_pert):
-        return cholmod.precision_to_products(Q, diag_pert=diag_pert, **p)
+    @pm.deterministic(trace=False)
+    def precision_products(Q=Q, p=pattern_products):
+        return cholmod.precision_to_products(Q, **p)
 
     S=pymc_objects.SparseMVN('S',M, precision_products, cholmod)
 
@@ -61,10 +70,13 @@ def make_model(X):
     return locals()
 
 if __name__ == '__main__':
-    n = 250
+    n = 2500
     X = spherical.well_spaced_mesh(n)
     
     INLAParentAdaptiveMetropolis = pymc_objects.wrap_metropolis_for_INLA(pm.AdaptiveMetropolis)
 
     M = pm.MCMC(make_model(X))
-    M.use_step_method(INLAParentAdaptiveMetropolis, [M.kappa, M.alpha], M.first_likelihood_derivative, M.second_likelihood_derivative, 1e-5, M.pattern_products)
+    M.use_step_method(INLAParentAdaptiveMetropolis, [M.kappa, M.m, M.amp, M.S], M.first_likelihood_derivative, M.second_likelihood_derivative, 1e-5, M.pattern_products)
+    sm = M.step_method_dict[M.S][0]
+    M.isample(100)
+    [pm.Matplot.plot(s) for s in [M.amp, M.kappa, M.amp]]

@@ -67,7 +67,7 @@ def make_model(N,k,X,backend,manifold):
     def precision_products(Q=Q, p=pattern_products):
         "All the analysis of the precision matrix that the backend needs to do MVN computations."
         try: 
-            return backend.precision_to_products(Q, diag_pert=0, **p)
+            return backend.precision_to_products(Q, **p)
         except backend.NonPositiveDefiniteError:
             return None
 

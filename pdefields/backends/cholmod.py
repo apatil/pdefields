@@ -44,7 +44,12 @@ def pattern_to_products(pattern):
     The return value is stored in a singleton dictionary with one key, 'symbolic'. It is stored in a dictionary to make it possible to have a uniform return type across all backends."""
     return {'symbolic': cholmod.analyze(pattern)}
 
-def precision_to_products(Q, diag_pert, symbolic):
+def increment_diagonal(m,inc):
+    "Adds inc to the diagonal of m in-place."
+    # FIXME: This is ridiculous. Do it in Fortran.
+    return m + sparse.dia_matrix((inc,0), m.shape).tocsc()
+
+def precision_to_products(Q, symbolic):
     """
     Takes a sparse precision matrix Q and a symbolic Cholesky factorization 'symbolic' and returns several derivative products in a dictionary:
     - Q: The input precision matrix, unaltered.
@@ -54,7 +59,7 @@ def precision_to_products(Q, diag_pert, symbolic):
     - Pbak: The backward permutation vector. x[P][Pbax] = x, and (LDL^T)[Pbak,:][:,Pbak] = Q
     - sqrtD: sqrt(D).
     - """
-    F = symbolic.cholesky(Q,beta=diag_pert)
+    F = symbolic.cholesky(Q)
     D = F.D()
     sqrtD = np.sqrt(D)
     det = np.sum(np.log(D))
@@ -64,9 +69,10 @@ def precision_to_products(Q, diag_pert, symbolic):
 
 def precision_solve_v(Q,v,diag,symbolic):
     "(Q+diag)^{-1} v, where Q is CSC and has been analyzed by pattern_to_products and v and diag are vectors."
-    Q_new = Q.copy()
-    Q_new.setdiag(Q.diagonal()+diag)
-    precprod = precision_to_products(Q_new, 0, symbolic)
+    # Q_new = Q.copy()
+    # Q_new.setdiag(Q.diagonal()+diag)
+    Q_new = increment_diagonal(Q,diag)
+    precprod = precision_to_products(Q_new, symbolic)
     return precprod['F'].solve_A(v), precprod
 
 def rmvn(M,Q,det,F,P,Pbak,sqrtD):
@@ -135,7 +141,7 @@ def conditional_mean_and_precision_products(y,M,Q_conditional,Q_obs,symbolic,L_o
     else:
         delta = y-LM-K_obs
         
-    Qc_precprod = precision_to_products(Q_conditional,0,symbolic)
+    Qc_precprod = precision_to_products(Q_conditional,symbolic)
     
     Mc = M + Qc_precprod['F'].solve_A(LQ_obs*delta).reshape(M.shape)
 

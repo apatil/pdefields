@@ -29,15 +29,7 @@ M = np.zeros(n)
 
 kappa = pm.Exponential('kappa',1,value=3)
 alpha = pm.DiscreteUniform('alpha',1,10,value=2.)
-diag_pert = pm.Exponential('diag_pert',1,value=0.)
 
-@pm.deterministic
-def normconst(kappa=kappa,alpha=alpha):
-    """normconst = function(parents)"""
-    d = 2.
-    nu = alpha - d/2
-    normconst = gamma(nu)/(gamma(nu+d/2)*(4.*np.pi)**(d/2)*kappa**(2*nu))
-    return normconst
 
 @pm.deterministic
 def Q(kappa=kappa, alpha=alpha):
@@ -51,8 +43,8 @@ pattern_products = cholmod.pattern_to_products(Q.value)
 #     return cholmod.pattern_to_products(Q)
 
 @pm.deterministic
-def precision_products(Q=Q, p=pattern_products, diag_pert=diag_pert,normconst=normconst):
-    return cholmod.precision_to_products(Q, diag_pert=diag_pert*normconst, **p)
+def precision_products(Q=Q, p=pattern_products):
+    return cholmod.precision_to_products(Q, **p)
 
 S=pymc_objects.SparseMVN('S',M, precision_products, cholmod)
 
