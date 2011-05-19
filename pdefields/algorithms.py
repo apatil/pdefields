@@ -177,7 +177,9 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,backend,pattern
     """
     Blah
     """
-    from scipy import stats
+    import warnings
+    warnings.warn('The EP algorithm as currently implemented is slow and incorrect.')
+    
     # Prepare gridpoints for numerical integration.
     int_pts = np.linspace(-sd_width/2.,sd_width/2., n_bins)
     dint_pts = int_pts[1]-int_pts[0]
@@ -190,8 +192,7 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,backend,pattern
     if likelihood_variables is None:
         likelihood_variables = np.zeros(len(M))
     likelihood_variables = np.asarray(likelihood_variables, order='F')
-
-    # ep = compile_ep_sweep(fortran_likelihood_code)
+    
     Q_obs = sparse.csc_matrix((Q.shape))
     nx = len(M)
     delta = np.inf
@@ -199,16 +200,16 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,backend,pattern
     effective_obsvars = 0*M+np.inf
     while delta > tol:
         delta = 0
-
         Q_obs.setdiag(1./effective_obsvars)
         mc, precision_products = backend.conditional_mean_and_precision_products(effective_obsvals,M,Q+Q_obs,Q_obs,**pattern_products)
         for i in xrange(nx):
+            # TODO: The loop is embarrassingly parallel and can be written in Fortran or PyCuda (note no 'if's).
             
             x_for_integral = int_pts*prior_sds[i] + mc[i]
             dx = dint_pts * prior_sds[i]
             
             # Evaluate likelihood over x-axis of integral.
-            likes = np.array([like_eval.lkinit(np.atleast_1d(xi), np.atleast_1d(M[i])*0, np.atleast_2d(likelihood_variables[i,:])) for xi in x_for_integral]).ravel()
+            likes = np.array([like_eval.lkinit(np.atleast_1d(xi), np.atleast_1d(0), np.atleast_2d(likelihood_variables[i,:])) for xi in x_for_integral]).ravel()
             # Posterior \propto prior * likelihood.
             posteriors = -(x_for_integral-mc[i])**2/2*diag[i] + likes
             # This is going to be exponentiated and the normalizing constant isn't known anyway, so make the numbers
@@ -228,5 +229,4 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,backend,pattern
             # Back out the 'observation' value and measurement variance
             effective_obsvars[i], delta = with_delta(effective_obsvars[i], 1/(1/v-diag[i]), delta)
             effective_obsvals[i], delta = with_delta(effective_obsvals[i], effective_obsvars[i]*(m/v-mc[i]*diag[i]), delta)
-        
     return effective_obsvals, effective_obsvars, mc, precision_products
