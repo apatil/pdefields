@@ -132,7 +132,6 @@ def fast_metropolis_sweep(M,Q,gmrf_metro,fortran_likelihood,x,likelihood_variabl
 def spmatvec(m,v):
     return (m*v.reshape((-1,1))).view(np.ndarray).ravel()
 
-# TODO: Evidence
 def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deriv2,backend,tol):
     """
     This function produces an approximate Gaussian full conditional for a multivariate normal variable x with sparse precision Q. This can be used to produce an approximate MCMC scheme or an INLA-like scheme.
@@ -148,18 +147,10 @@ def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deri
     - The linear algebra backend that will handle the matrix solves.
     
     Returns the approximate full conditional mean of x, the backend's analysis of the full conditional precision Q, and the approximate evidence (the probability of the data conditional on M and Q, not x).
-    """
-    
-    # y|x ~ -(y-x)**2/2/v
-    # d1 = -(y-x)/v
-    # d2 = -1/v
-    # y-x = d1/d2
-    # y = d1/d2 + x
-    
+    """    
     x = M
     delta = x*0+np.inf
     while np.abs(delta).max() > tol:
-        # print np.abs(delta).max()
         d1 = like_deriv1(x)
         d2 = like_deriv2(x)
         grad2 = d1-spmatvec(Q,(x-M))
@@ -169,64 +160,87 @@ def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deri
     like_vals = -d1/d2+x-delta
     return like_vals,-1/d2,x,precision_products
     
-def with_delta(x,new_x,delta):
-    delta = max(delta, np.abs(x-new_x))
-    return new_x, delta
-    
-def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,backend,pattern_products,likelihood_variables=None,n_bins=100,sd_width=10):
+def gaussian_evidence(vals, vars, M, pp, Mc, ppc, x, backend):
     """
-    Blah
+    This function gives p(vals) in 
+    
+    x ~ N(M,Q^{-1})
+    vals[i] ~ N(x[i], vars[i])
+    
+    where: 
+    - pp are the backend's precision products of Q
+    - Mc is E[x|y]
+    - ppc is the backend's precision products of the conditional precision of x on y
+    - backend is a linear algebra backend
+    
+    The answer should not depend on x, but Mc is probably a good choice.3
     """
-    import warnings
-    warnings.warn('The EP algorithm as currently implemented is slow and incorrect.')
     
-    # Prepare gridpoints for numerical integration.
-    int_pts = np.linspace(-sd_width/2.,sd_width/2., n_bins)
-    dint_pts = int_pts[1]-int_pts[0]
-    diag = Q.diagonal()
-    prior_sds = 1./np.sqrt(diag)
+    # p(x|y)p(y) = p(x,y)
+    # p(y) = p(y|x)p(x)/p(x|y)
+    pygx = pm.normal_like(vals, x, 1./vars)
+    pxgy = backend.mvn_logp(x, Mc, **ppc)
+    px = backend.mvn_logp(x, M, **pp)
+    return px + pygx - pxgy
     
-    from scipy import integrate
-    
-    like_eval = compile_likelihood_evaluation(fortran_likelihood_code)
-    if likelihood_variables is None:
-        likelihood_variables = np.zeros(len(M))
-    likelihood_variables = np.asarray(likelihood_variables, order='F')
-    
-    Q_obs = sparse.csc_matrix((Q.shape))
-    nx = len(M)
-    delta = np.inf
-    effective_obsvals = 0*M
-    effective_obsvars = 0*M+np.inf
-    while delta > tol:
-        delta = 0
-        Q_obs.setdiag(1./effective_obsvars)
-        mc, precision_products = backend.conditional_mean_and_precision_products(effective_obsvals,M,Q+Q_obs,Q_obs,**pattern_products)
-        for i in xrange(nx):
-            # TODO: The loop is embarrassingly parallel and can be written in Fortran or PyCuda (note no 'if's).
-            
-            x_for_integral = int_pts*prior_sds[i] + mc[i]
-            dx = dint_pts * prior_sds[i]
-            
-            # Evaluate likelihood over x-axis of integral.
-            likes = np.array([like_eval.lkinit(np.atleast_1d(xi), np.atleast_1d(0), np.atleast_2d(likelihood_variables[i,:])) for xi in x_for_integral]).ravel()
-            # Posterior \propto prior * likelihood.
-            posteriors = -(x_for_integral-mc[i])**2/2*diag[i] + likes
-            # This is going to be exponentiated and the normalizing constant isn't known anyway, so make the numbers
-            # reasonable sized to avoid numerical problems.
-            posteriors -= posteriors.max()
-            
-            # Normalizing constant.
-            norm = integrate.simps(np.exp(posteriors),None, dx)
-
-            # Full conditional mean
-            m = integrate.simps(np.exp(posteriors)*x_for_integral,None, dx)/norm
-            m2 = integrate.simps(np.exp(posteriors)*x_for_integral**2,None, dx)/norm
-            
-            # Full conditional variance
-            v = m2-m**2
-            
-            # Back out the 'observation' value and measurement variance
-            effective_obsvars[i], delta = with_delta(effective_obsvars[i], 1/(1/v-diag[i]), delta)
-            effective_obsvals[i], delta = with_delta(effective_obsvals[i], effective_obsvars[i]*(m/v-mc[i]*diag[i]), delta)
-    return effective_obsvals, effective_obsvars, mc, precision_products
+# def with_delta(x,new_x,delta):
+#     delta = max(delta, np.abs(x-new_x))
+#     return new_x, delta
+#     
+# def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,backend,pattern_products,likelihood_variables=None,n_bins=100,sd_width=10):
+#     """
+#     Blah
+#     """
+#     import warnings
+#     warnings.warn('The EP algorithm as currently implemented is slow and incorrect.')
+#     
+#     # Prepare gridpoints for numerical integration.
+#     int_pts = np.linspace(-sd_width/2.,sd_width/2., n_bins)
+#     dint_pts = int_pts[1]-int_pts[0]
+#     diag = Q.diagonal()
+#     prior_sds = 1./np.sqrt(diag)
+#     
+#     from scipy import integrate
+#     
+#     like_eval = compile_likelihood_evaluation(fortran_likelihood_code)
+#     if likelihood_variables is None:
+#         likelihood_variables = np.zeros(len(M))
+#     likelihood_variables = np.asarray(likelihood_variables, order='F')
+#     
+#     Q_obs = sparse.csc_matrix((Q.shape))
+#     nx = len(M)
+#     delta = np.inf
+#     effective_obsvals = 0*M
+#     effective_obsvars = 0*M+np.inf
+#     while delta > tol:
+#         delta = 0
+#         Q_obs.setdiag(1./effective_obsvars)
+#         mc, precision_products = backend.conditional_mean_and_precision_products(effective_obsvals,M,Q+Q_obs,Q_obs,**pattern_products)
+#         for i in xrange(nx):
+#             # TODO: The loop is embarrassingly parallel and can be written in Fortran or PyCuda (note no 'if's).
+#             
+#             x_for_integral = int_pts*prior_sds[i] + mc[i]
+#             dx = dint_pts * prior_sds[i]
+#             
+#             # Evaluate likelihood over x-axis of integral.
+#             likes = np.array([like_eval.lkinit(np.atleast_1d(xi), np.atleast_1d(0), np.atleast_2d(likelihood_variables[i,:])) for xi in x_for_integral]).ravel()
+#             # Posterior \propto prior * likelihood.
+#             posteriors = -(x_for_integral-mc[i])**2/2*diag[i] + likes
+#             # This is going to be exponentiated and the normalizing constant isn't known anyway, so make the numbers
+#             # reasonable sized to avoid numerical problems.
+#             posteriors -= posteriors.max()
+#             
+#             # Normalizing constant.
+#             norm = integrate.simps(np.exp(posteriors),None, dx)
+# 
+#             # Full conditional mean
+#             m = integrate.simps(np.exp(posteriors)*x_for_integral,None, dx)/norm
+#             m2 = integrate.simps(np.exp(posteriors)*x_for_integral**2,None, dx)/norm
+#             
+#             # Full conditional variance
+#             v = m2-m**2
+#             
+#             # Back out the 'observation' value and measurement variance
+#             effective_obsvars[i], delta = with_delta(effective_obsvars[i], 1/(1/v-diag[i]), delta)
+#             effective_obsvals[i], delta = with_delta(effective_obsvals[i], effective_obsvars[i]*(m/v-mc[i]*diag[i]), delta)
+#     return effective_obsvals, effective_obsvars, mc, precision_products

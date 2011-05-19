@@ -96,7 +96,7 @@ def mvn_logp(x,M,Q,det,F,P,Pbak,sqrtD):
     - sqrtD: The square root of the diagonal matrix D from Cholmod's Cholesky factorization.    
     Returns the log-probability of x given M and Q.
      """
-    d = (x-M)[P]
+    d = (x-M)
     return -.5*np.dot(d,Q*d) + .5*det - .5*len(M)*np.log(2.*np.pi)
     
 def conditional_mean_and_precision_products(y,M,Q_conditional,Q_obs,symbolic,L_obs=None,K_obs=None):
