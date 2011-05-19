@@ -70,7 +70,7 @@ def make_model(X):
     return locals()
 
 if __name__ == '__main__':
-    n = 2500
+    n = 250
     X = spherical.well_spaced_mesh(n)
     
     INLAParentAdaptiveMetropolis = pymc_objects.wrap_metropolis_for_INLA(pm.AdaptiveMetropolis)
@@ -78,5 +78,5 @@ if __name__ == '__main__':
     M = pm.MCMC(make_model(X))
     M.use_step_method(INLAParentAdaptiveMetropolis, [M.kappa, M.m, M.amp, M.S], M.first_likelihood_derivative, M.second_likelihood_derivative, 1e-5, M.pattern_products)
     sm = M.step_method_dict[M.S][0]
-    M.isample(100)
+    M.isample(1000,0,10)
     [pm.Matplot.plot(s) for s in [M.amp, M.kappa, M.amp]]
