@@ -136,7 +136,7 @@ def conditional_mean_and_precision_products(y,M,Q_conditional,Q_obs,symbolic,L_o
         delta = y-LM-K_obs
         
     Qc_precprod = precision_to_products(Q_conditional,0,symbolic)
-
+    
     Mc = M + Qc_precprod['F'].solve_A(LQ_obs*delta).reshape(M.shape)
 
     return Mc, Qc_precprod

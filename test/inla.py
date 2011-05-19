@@ -61,6 +61,13 @@ vars = pm.rgamma(4,4,size=n)/10
 Qobs = sparse.csc_matrix((n,n))
 Qobs.setdiag(1./vars)
 
+
+def vecdiff(v1,v2):
+    return np.abs((v2-v1)).max()/np.abs(v2).mean()
+
+true_mcond, _ = cholmod.conditional_mean_and_precision_products(vals,M,Q.value+Qobs,Qobs,**pattern_products)
+# true_mcond_ = M+np.dot(Q.value.todense().I,np.linalg.solve((Q.value.todense().I+np.diag(vars)),(vals-M)))
+
 # Stuff for the scoring algorithm-based full conditional
 def first_likelihood_derivative(x, vals=vals, vars=vars):
     return -(x-vals)/vars
@@ -73,10 +80,17 @@ lpf_str = "lkp = -({X}-lv(i,1))**2/2.0D0/lv(i,2)"
 likelihood_vars = np.vstack((vals,vars)).T
 
 # true_conditional_mean, cpp = cholmod.conditional_mean_and_precision_products(vals,M,Q.value+Qobs,Qobs,**pattern_products)
-# M_conditional, precprod_conditional = algorithms.scoring_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
+prod_scoring = algorithms.scoring_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
+prod_ep = algorithms.EP_gaussian_full_conditional(M,Q.value,lpf_str,1.e-8,cholmod,pattern_products,likelihood_vars,n_bins=100)
 
-prod = algorithms.EP_gaussian_full_conditional(M,Q.value,lpf_str,1.e-8,cholmod,pattern_products,likelihood_vars,n_bins=100)
 
-# These should be zero
-# print np.abs(true_conditional_mean - M_conditional).max()
-# print np.abs(1./(precprod_conditional['Q']-Q.value).diagonal()-vars).max()
+# These should be small
+print 'Observation values',vecdiff(vals,prod_scoring[0]),vecdiff(vals,prod_ep[0])
+print 'Observation variances',vecdiff(vars,prod_scoring[1]),vecdiff(vars,prod_ep[1])
+
+print 'Conditional means',vecdiff(true_mcond, prod_scoring[2]),vecdiff(true_mcond,prod_ep[2])
+print 'Conditional precisions',vecdiff((Q.value+Qobs).todense(),prod_scoring[3]['Q'].todense()),vecdiff((Q.value+Qobs).todense(),prod_ep[3]['Q'].todense())
+
+d1 = prod_scoring[0]
+x = prod_scoring[2]
+d2 = prod_scoring[1]

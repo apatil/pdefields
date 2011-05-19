@@ -76,9 +76,9 @@ def compile_metropolis_sweep(fortran_likelihood_code):
     lkp = dexp({X})/(1.0D0+dexp({X}))
     lkp = lv(i,2)*dlog(lkp) + (lv(i,1)-lv(i,2))*dlog(1.0D0-lkp)
     
-    Returns a function for use by fast_metropolis_sweep. The generated code is included in the return object as the 'code' attribute.
+    Returns a function for use by metropolis_sweep. The generated code is included in the return object as the 'code' attribute.
     """
-    template = file(os.path.join(os.path.split(pdefields.__file__)[0],'fast_metro.f')).read()
+    template = file(os.path.join(os.path.split(pdefields.__file__)[0],'metro.f')).read()
     return compile_fortran_routine(fortran_likelihood_code, 'gmrf_metro', template)
     
 def compile_likelihood_evaluation(fortran_likelihood_code):
@@ -149,6 +149,13 @@ def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deri
     
     Returns the approximate full conditional mean of x, the backend's analysis of the full conditional precision Q, and the approximate evidence (the probability of the data conditional on M and Q, not x).
     """
+    
+    # y|x ~ -(y-x)**2/2/v
+    # d1 = -(y-x)/v
+    # d2 = -1/v
+    # y-x = d1/d2
+    # y = d1/d2 + x
+    
     x = M
     delta = x*0+np.inf
     while np.abs(delta).max() > tol:
@@ -159,18 +166,9 @@ def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deri
         delta, precision_products = backend.precision_solve_v(Q,d1-spmatvec(Q,(x-M)),-d2,**pattern_products)
         
         x = x + delta
+    like_vals = -d1/d2+x-delta
+    return like_vals,-1/d2,x,precision_products
     
-    return d1,d2,x,precision_products
-log4 = np.log(4)
-log3 = np.log(3)
-log2 = np.log(2)
-def log_simpson(ly,dx):
-    # dx/3 (y0 + 4y1 + 2y2 +... + 2yn-2 + 4yn-1 + yn)
-    ly_ = ly.copy()
-    ly_[1:-1:2] += log4
-    ly_[2:-2:2] += log2
-    return pm.flib.logsum(ly_)+np.log(dx)-log3
-
 def with_delta(x,new_x,delta):
     delta = max(delta, np.abs(x-new_x))
     return new_x, delta
@@ -203,14 +201,14 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,backend,pattern
         delta = 0
 
         Q_obs.setdiag(1./effective_obsvars)
-        mc, precision_products = backend.conditional_mean_and_precision_products(effective_obsvals,M*0,Q+Q_obs,Q_obs,**pattern_products)
+        mc, precision_products = backend.conditional_mean_and_precision_products(effective_obsvals,M,Q+Q_obs,Q_obs,**pattern_products)
         for i in xrange(nx):
             
             x_for_integral = int_pts*prior_sds[i] + mc[i]
             dx = dint_pts * prior_sds[i]
             
             # Evaluate likelihood over x-axis of integral.
-            likes = np.array([like_eval.lkinit(np.atleast_1d(xi), np.atleast_1d(M[i]), np.atleast_2d(likelihood_variables[i,:])) for xi in x_for_integral]).ravel()
+            likes = np.array([like_eval.lkinit(np.atleast_1d(xi), np.atleast_1d(M[i])*0, np.atleast_2d(likelihood_variables[i,:])) for xi in x_for_integral]).ravel()
             # Posterior \propto prior * likelihood.
             posteriors = -(x_for_integral-mc[i])**2/2*diag[i] + likes
             # This is going to be exponentiated and the normalizing constant isn't known anyway, so make the numbers
