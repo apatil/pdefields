@@ -207,11 +207,24 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_vari
             posteriors -= posteriors.max()
             
             norm = integrate.simps(np.exp(posteriors),None, dx)
-            
+
+            # Full conditional mean
             m = integrate.simps(np.exp(posteriors)*x_for_integral,None, dx)/norm
             m2 = integrate.simps(np.exp(posteriors)*x_for_integral**2,None, dx)/norm
             
+            # Full conditional variance
             v = m2-m**2
+            
+            # (m1/v1 + m2/v2)/(1/v1 + 1/v2) = m_cond
+            # (1/v1+1/v2) = 1/vcond
+            # v2 = 1/(1/vcond-1/v1)
+            # m2 = v2*(m_cond*(1/v1+1/v2)-m1/v1) = v2*(mcond/vcond-m1/v1)
+            # Back out the 'observation' value and measurement variance
+            like_vars[i] = 1/(1/v-diag[i])
+            like_means[i] = like_vars[i]*(m/v-mc[i]*diag[i])
+            
+            print 'mean', like_means[i], likelihood_variables[i,0]
+            print 'variance', like_vars[i], likelihood_variables[i,1]
             
         delta.fill(0)
         
