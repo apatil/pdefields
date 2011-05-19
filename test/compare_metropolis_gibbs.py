@@ -66,7 +66,6 @@ vars = pm.rgamma(4,4,size=n)/1000
 
 likelihood_vars = np.vstack((vals,vars)).T
 
-# TODO: Statistical test comparing Metropolis and Gibbs
 Qobs = sparse.csc_matrix((n,n))
 
 lpf_str = "lkp = -({X}-lv(i,1))**2/2.0D0/lv(i,2)"

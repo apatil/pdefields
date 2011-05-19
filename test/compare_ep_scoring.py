@@ -48,7 +48,6 @@ vals = X[:,0]
 vars = pm.rgamma(4,4,size=n)/10
 
 
-# TODO: Statistical test comparing Metropolis and Gibbs
 Qobs = sparse.csc_matrix((n,n))
 Qobs.setdiag(1./vars)
 

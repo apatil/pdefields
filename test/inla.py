@@ -55,8 +55,7 @@ def make_model(X):
     vals = X[:,2]
 
     data = pm.Normal('data', S, 1./vars, value=vals, observed=True)
-
-    # TODO: Statistical test comparing Metropolis and Gibbs
+    
     Qobs = sparse.csc_matrix((n,n))
     Qobs.setdiag(1./vars)
     
