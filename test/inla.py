@@ -75,7 +75,7 @@ likelihood_vars = np.vstack((vals,vars)).T
 # true_conditional_mean, cpp = cholmod.conditional_mean_and_precision_products(vals,M,Q.value+Qobs,Qobs,**pattern_products)
 # M_conditional, precprod_conditional = algorithms.scoring_gaussian_full_conditional(M,Q.value,pattern_products,first_likelihood_derivative,second_likelihood_derivative,cholmod,1e-4)
 
-prod = algorithms.EP_gaussian_full_conditional(M,Q.value,lpf_str,1.e-8,likelihood_vars,n_bins=100)
+prod = algorithms.EP_gaussian_full_conditional(M,Q.value,lpf_str,1.e-8,cholmod,pattern_products,likelihood_vars,n_bins=100)
 
 # These should be zero
 # print np.abs(true_conditional_mean - M_conditional).max()

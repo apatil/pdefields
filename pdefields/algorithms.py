@@ -85,6 +85,9 @@ def compile_likelihood_evaluation(fortran_likelihood_code):
     template = file(os.path.join(os.path.split(pdefields.__file__)[0],'likelihood_eval.f')).read()
     return compile_fortran_routine(fortran_likelihood_code, 'likelihood', template)
     
+def compile_ep_sweep(fortran_likelihood_code):
+    template = file(os.path.join(os.path.split(pdefields.__file__)[0],'ep.f')).read()
+    return compile_fortran_routine(fortran_likelihood_code, 'gmrf_ep', template)
 
 def fast_metropolis_sweep(M,Q,gmrf_metro,fortran_likelihood,x,likelihood_variables=None,n_sweeps=10):
     """
@@ -157,7 +160,7 @@ def scoring_gaussian_full_conditional(M,Q,pattern_products,like_deriv1,like_deri
         
         x = x + delta
     
-    return x, precision_products
+    return d1,d2,x,precision_products
 log4 = np.log(4)
 log3 = np.log(3)
 log2 = np.log(2)
@@ -172,7 +175,7 @@ def with_delta(x,new_x,delta):
     delta = max(delta, np.abs(x-new_x))
     return new_x, delta
     
-def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_variables=None,n_bins=100,sd_width=10):
+def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,backend,pattern_products,likelihood_variables=None,n_bins=100,sd_width=10):
     """
     Blah
     """
@@ -187,20 +190,21 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_vari
     
     like_eval = compile_likelihood_evaluation(fortran_likelihood_code)
     if likelihood_variables is None:
-        likelihood_variables = np.zeros(len(x))
+        likelihood_variables = np.zeros(len(M))
     likelihood_variables = np.asarray(likelihood_variables, order='F')
 
-    x = M*0
-    mc = 0*x
-    nx = len(x)
+    # ep = compile_ep_sweep(fortran_likelihood_code)
+    Q_obs = sparse.csc_matrix((Q.shape))
+    nx = len(M)
     delta = np.inf
-    effective_obsvals = 0*x
-    effective_obsvars = 0*x
+    effective_obsvals = 0*M
+    effective_obsvars = 0*M+np.inf
     while delta > tol:
         delta = 0
+
+        Q_obs.setdiag(1./effective_obsvars)
+        mc, precision_products = backend.conditional_mean_and_precision_products(effective_obsvals,M*0,Q+Q_obs,Q_obs,**pattern_products)
         for i in xrange(nx):
-            mc[i] = (diag[i]*x[i]-spmatvec(Q[:,i].T,x))/diag[i]
-            
             
             x_for_integral = int_pts*prior_sds[i] + mc[i]
             dx = dint_pts * prior_sds[i]
@@ -227,4 +231,4 @@ def EP_gaussian_full_conditional(M,Q,fortran_likelihood_code,tol,likelihood_vari
             effective_obsvars[i], delta = with_delta(effective_obsvars[i], 1/(1/v-diag[i]), delta)
             effective_obsvals[i], delta = with_delta(effective_obsvals[i], effective_obsvars[i]*(m/v-mc[i]*diag[i]), delta)
         
-    return effective_obsvals, effective_obsvars
+    return effective_obsvals, effective_obsvars, mc, precision_products
