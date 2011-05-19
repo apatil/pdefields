@@ -59,7 +59,12 @@ def make_model(X):
     # TODO: Statistical test comparing Metropolis and Gibbs
     Qobs = sparse.csc_matrix((n,n))
     Qobs.setdiag(1./vars)
-
+    
+    @pm.deterministic(trace=False)
+    def true_evidence(Q=Q, M=M, vals=vals, vars=vars):
+        C = np.array(Q.todense().I+np.diag(vars))
+        return pm.mv_normal_cov_like(vals, M, C)
+    
     # Stuff for the scoring algorithm-based full conditional
     def first_likelihood_derivative(x, vals=vals, vars=vars):
         return -(x-vals)/vars
